@@ -1,9 +1,9 @@
 
 # ![Cruda](./logo-32.png) Cruda
-![npm](https://img.shields.io/npm/v/@holyhigh/crud-vue)
-![NPM](https://img.shields.io/npm/l/@holyhigh/crud-vue)
+![npm](https://img.shields.io/npm/v/cruda)
+![NPM](https://img.shields.io/npm/l/cruda)
 
-A CRUD view model, provides hosting of data, states and operations like `submit()`/`form.name`/`loading.table`, which makes developers to build CRUD view more fast and less code.
+A CRUD view model provides hosting of data, states and operations like `submit()`/`form.name`/`loading.table`, which makes developers build CRUD view faster.
 
 Cruda provides unified APIs for different UIFrameworks by Cruda-adapters.
 
@@ -11,8 +11,8 @@ Cruda provides unified APIs for different UIFrameworks by Cruda-adapters.
 ![Cruda](./conception.png)
 
 ## Demos
-- [element-ui](https://stackblitz.com/edit/cruda-element-ui)
-- [element-plus](https://stackblitz.com/edit/cruda-element-plus)
+- [element-ui](https://stackblitz.com/edit/cruda-element-ui?file=src%2FApp.vue)
+- [element-plus](https://stackblitz.com/edit/cruda-element-plus?file=src%2FApp.vue)
 
 ## Features
 - Data hosting
@@ -126,9 +126,9 @@ CRUD.RESTAPI = {
   > - submit 
   > - form 
 - query
-  > Query data hosting
+  > Query data container
 - table
-  > Table data hosting
+  > Table data container
   >
   > - data 
   > - selection 
@@ -136,15 +136,15 @@ CRUD.RESTAPI = {
   > - orders 
   > - rowKey✅
 - pagination
-  > Pagination hosting
+  > Pagination container
   >
   > - pageSize✅ 
   > - currentPage 
   > - total 
 - form
-  > Form data hosting
+  > Form data container
 - formStatus
-  > current state. 0：Normal；1：Add；2：Edit；3：View
+  > form state. 0：Normal；1：Add；2：Edit；3：View
 - vm
   > crud entry
 - params

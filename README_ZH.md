@@ -1,7 +1,7 @@
 
 # ![Cruda](./logo-32.png) Cruda
-![npm](https://img.shields.io/npm/v/@holyhigh/crud-vue)
-![NPM](https://img.shields.io/npm/l/@holyhigh/crud-vue)
+![npm](https://img.shields.io/npm/v/cruda)
+![NPM](https://img.shields.io/npm/l/cruda)
 
 一个CRUD视图模型，提供数据、状态、操作的托管如 `submit()`/`form.name`/`loading.table`，可以让开发者使用更少的代码，更快的构建CRUD视图。
 
@@ -11,8 +11,8 @@ Cruda通过适配器提供跨UI框架的统一接口。
 ![Cruda](./conception.png)
 
 ## Demos
-- [element-ui](https://stackblitz.com/edit/cruda-element-ui)
-- [element-plus](https://stackblitz.com/edit/cruda-element-plus)
+- [element-ui](https://stackblitz.com/edit/cruda-element-ui?file=src%2FApp.vue)
+- [element-plus](https://stackblitz.com/edit/cruda-element-plus?file=src%2FApp.vue)
 
 ## 特性
 - 数据托管
