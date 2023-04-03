@@ -156,8 +156,8 @@ CRUD.RESTAPI = {
 
 ### Methods
 
-- toQuery() : Promise
-  > Instance query. Send GET request to the backend
+- toQuery(query?:Record<string, any>) : Promise
+  > Instance query. Send GET request to the backend。The argument 'query' will [merge](https://holyhigh2.github.io/func.js/api/modules/object#merge) with the $crud.query
 - toDelete(rows) : Promise
   > Instance del. Send DELETE request to the backend
 - toExport() : Promise

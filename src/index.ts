@@ -17,6 +17,7 @@ import {
   isFunction,
   trim,
   isNil,
+  merge,
 } from '@holyhigh/func.js'
 import { RestUrl, CRUDError, Pagination } from './types'
 
@@ -218,9 +219,9 @@ class CRUD {
     return this.url.replace(/:([^:]+?)(\/|$)/gm, (a, b, c) => params[b] + c)
   }
 
-  async toQuery(): Promise<unknown> {
+  async toQuery(query?:Record<string, any>): Promise<unknown> {
     const params = {
-      ...this.query,
+      ...merge(this.query,query),
       ...this.pagination,
     }
 

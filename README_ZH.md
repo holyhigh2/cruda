@@ -157,8 +157,8 @@ CRUD.RESTAPI = {
 
 ## APIs
 
-- toQuery() : Promise
-  > 启动 crud 实例的查询。向指定 REST 地址发送 GET 请求
+- toQuery(query?:Record<string, any>) : Promise
+  > 启动 crud 实例的查询。向指定 REST 地址发送 GET 请求。query参数会与$crud.query进行[merge](https://holyhigh2.github.io/func.js/api/modules/object#merge)但不会修改$crud.query
 - toDelete(rows) : Promise
   > 启动 crud 实例的删除。向指定 REST 地址发送 DELETE 请求
 - toExport() : Promise
