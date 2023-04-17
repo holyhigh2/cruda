@@ -355,8 +355,8 @@ class CRUD {
   }
 
   toAdd(...args: unknown[]): void {
-    callHook(CRUD.HOOK.BEFORE_ADD, this, ...args)
     this.formStatus = 1
+    callHook(CRUD.HOOK.BEFORE_ADD, this, ...args)
   }
 
   async toEdit(row: Record<string, unknown>): Promise<unknown> {

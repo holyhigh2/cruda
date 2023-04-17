@@ -47,7 +47,8 @@ export default [
     output: [
       {
         file: 'dist/index.js',
-        format: 'esm'
+        format: 'esm',
+        sourcemap: true
       },
     ],
   }
