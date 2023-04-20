@@ -463,6 +463,11 @@ class CRUD {
         rs = await this.doAdd()
       } else if (this.formStatus === 2) {
         rs = await this.doUpdate()
+      }else{
+        crudWarn(
+          `formStatus '${this.formStatus}' is not submittable, it should be 1(add)/2(update)`,
+          '- submit()'
+        )
       }
 
       this.loading.submit = false
