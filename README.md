@@ -95,38 +95,46 @@ CRUD.defaults.table.rowKey = 'id'
 You can modify the URL to adapt to the backend service
 ```js
 CRUD.RESTAPI = {
-  QUERY: '', //R
-  ADD: '', //C
-  UPDATE: '', //U
-  DELETE: '', //D
-  EXPORT: '/export',
-  IMPORT: '/import',
+  QUERY: { url: "", method: "GET" },
+  ADD: { url: "", method: "POST" },
+  UPDATE: { url: "", method: "PUT" },
+  DELETE: { url: "", method: "DELETE" },
+  EXPORT: { url: "/export", method: "GET" },
+  IMPORT: { url: "/import", method: "POST" },
+  SORT: { url: "/sort", method: "PUT" },
+  COPY: { url: "/copy", method: "POST" },
 }
 ```
-**Notice**, You can't change the HTTP Method corresponding to their API
 
 ## Cruda API
 ### VM
 - view ✅
   > Display switch of Components
   >
-  > - queryShow 
-  > - queryReset 
+  > - opQuery
   > - opAdd 
   > - opEdit 
   > - opDel 
   > - opExport 
+  > - opImport
+  > - opSort
+  > - opCopy
 - loading
   > Toggle loading state
   >
   > - query 
   > - table 
   > - del 
-  > - export 
   > - submit 
   > - form 
+  > - export 
+  > - import 
+  > - sort 
+  > - copy 
 - query
   > Query data container
+- sortation
+  > Sort data container
 - table
   > Table data container
   >
@@ -184,7 +192,7 @@ CRUD.RESTAPI = {
   > return row data
 - changeSelection(selection: Record<string, any>[])
   > Usually used in row selection event like `selection-change` in `element-ui`
-- changeSort(sortData: {
+- changeOrder(sortData: {
   column: Record<string, any>
   prop: string
   order: string | null
@@ -193,40 +201,47 @@ CRUD.RESTAPI = {
 
 ### HOOKs
 
-- BEFORE_QUERY(crud,params,orders,cancel)
+- BEFORE_QUERY(crud,params,orders,cancel) _**async**_
   > Emit before query. Can modify the params before request send. Cancellable, if be cancelled the `AFTER_QUERY` will not emit
-- AFTER_QUERY(crud,rs)
+- AFTER_QUERY(crud,rs) _**async**_
   > Emit after query. Can set table data by 'rs'
-- BEFORE_DELETE(crud,rows,cancel)
+- BEFORE_DELETE(crud,rows,cancel) _**async**_
   > Emit before delete. Cancellable, if be cancelled the `AFTER_DELETE` will not emit
-- AFTER_DELETE(crud,rs)
+- AFTER_DELETE(crud,rs,rows) _**async**_
   > Emit after delete
-- BEFORE_ADD(crud,...args)
-  > Emit before add. Can clear the form data or generate a UUID. 
-- BEFORE_EDIT_QUERY(crud,params,cancel)
-  > Emit before edit query send. Cancellable, if be cancelled the `BEFORE_EDIT` will not emit
-- BEFORE_EDIT(crud,rs)
-  > Emit before edit
-- BEFORE_VIEW_QUERY(crud,params,cancel)
-  > Emit before view query send. Cancellable, if be cancelled the `BEFORE_VIEW` will not emit
-- BEFORE_VIEW(crud,rs)
-  > Emit before view
-- BEFORE_SUBMIT(crud,cancel)
+- BEFORE_ADD(crud,cancel,...args) _**async**_
+  > Emit before add. Can clear the form data or generate a UUID. Cancellable,if be cancelled the `formStatus` will not be change
+- BEFORE_EDIT(crud,row,cancel,skip) _**async**_
+  > Emit before edit. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
+- BEFORE_VIEW(crud,row,cancel,skip) _**async**_
+  > Emit before view. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
+- AFTER_DETAILS(crud,rs) _**async**_
+  > Emit after toEdit/toView and not be skipped by `skip()`
+- BEFORE_SUBMIT(crud,cancel,form) _**async**_
   > Emit before form submit. Cancellable, if be cancelled the `AFTER_SUBMIT` will not emit
-- AFTER_SUBMIT(crud,rs)
+- AFTER_SUBMIT(crud,rs) _**async**_
   > Emit after form submit. Can reload page, send notice here
-- BEFORE_EXPORT(crud,params,orders,cancel)
+- BEFORE_EXPORT(crud,params,orders,cancel) _**async**_
   > Emit before export. Cancellable, if be cancelled the `AFTER_EXPORT` will not emit
-- AFTER_EXPORT(crud,rs)
+- AFTER_EXPORT(crud,rs) _**async**_
   > Emit after export complete
+- BEFORE_IMPORT(crud,params,cancel) _**async**_
+  > Emit before import. Can modify the params before request send. Cancellable, if be cancelled the `AFTER_IMPORT` will not emit
+- AFTER_IMPORT(crud,rs) _**async**_
+  > Emit after import complete
+- BEFORE_SORT(crud,sortation,cancel) _**async**_
+  > Emit before sort. Cancellable, if be cancelled the `AFTER_SORT` will not emit
+- AFTER_SORT(crud,rs) _**async**_
+  > Emit after sort complete
+- BEFORE_COPY(crud,rows,cancel) _**async**_
+  > Emit before copy. Cancellable, if be cancelled the `AFTER_COPY` will not emit
+- AFTER_COPY(crud,rs,rows) _**async**_
+  > Emit after copy complete
 - ON_ERROR(crud,error)
   > Emit on error
 - ON_CANCEL(crud)
   > Emit after cancel() be called
-- BEFORE_IMPORT(crud,params,cancel)
-  > Emit before import. Can modify the params before request send. Cancellable, if be cancelled the `AFTER_IMPORT` will not emit
-- AFTER_IMPORT(crud,rs)
-  > Emit after import complete
+
 
 ## Errors
 

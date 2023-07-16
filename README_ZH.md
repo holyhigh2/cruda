@@ -95,15 +95,16 @@ CRUD.defaults.table.rowKey = 'id'
 可以修改API地址来适配后端服务
 ```js
 CRUD.RESTAPI = {
-  QUERY: '', //R
-  ADD: '', //C
-  UPDATE: '', //U
-  DELETE: '', //D
-  EXPORT: '/export',
-  IMPORT: '/import',
+  QUERY: { url: "", method: "GET" },
+  ADD: { url: "", method: "POST" },
+  UPDATE: { url: "", method: "PUT" },
+  DELETE: { url: "", method: "DELETE" },
+  EXPORT: { url: "/export", method: "GET" },
+  IMPORT: { url: "/import", method: "POST" },
+  SORT: { url: "/sort", method: "PUT" },
+  COPY: { url: "/copy", method: "POST" },
 }
 ```
-**注意**, API对应的HTTP方法是无法修改的
 
 ## Cruda API
 ### VM
@@ -111,23 +112,30 @@ CRUD.RESTAPI = {
 - view ✅
   > 业务组件通过 view 来控制 UI
   >
-  > - queryShow 查询框显示开关
-  > - queryReset 查询框重置按钮显示开关
+  > - opQuery 查询(框/按钮/..)开关
   > - opAdd 新增按钮显示开关
   > - opEdit 编辑按钮显示开关
   > - opDel 删除按钮显示开关
   > - opExport 导出按钮显示开关
+  > - opImport 导入按钮显示开关
+  > - opSort 排序按钮显示开关
+  > - opCopy 复制按钮显示开关
 - loading
   > 通过 loading 控制锁定状态
   >
   > - query 查询按钮锁定开关
   > - table 表格锁定开关
   > - del 删除按钮锁定开关
-  > - export 导出按钮锁定开关
   > - submit 提交按钮锁定开关
   > - form 表单加载锁定开关
+  > - export 导出按钮锁定开关
+  > - import 导入按钮锁定开关
+  > - sort 排序按钮锁定开关
+  > - copy 复制按钮锁定开关
 - query
   > 托管查询条件的容器
+- sortation
+  > 托管排序结果的容器
 - table
   > 表格容器托管当前 crud 实例的列表/tree 数据及显示状态
   >
@@ -160,17 +168,21 @@ CRUD.RESTAPI = {
 - toQuery(query?:Record<string, any>) : Promise
   > 启动 crud 实例的查询。向指定 REST 地址发送 GET 请求。query参数会与$crud.query进行[merge](https://holyhigh2.github.io/func.js/api/modules/object#merge)但不会修改$crud.query
 - toDelete(rows) : Promise
-  > 启动 crud 实例的删除。向指定 REST 地址发送 DELETE 请求
+  > 启动 crud 实例的删除。向指定 REST 地址发送 DELETE _**(默认)**_ 请求
 - toExport() : Promise
-  > 启动 crud 实例的导出。向指定 REST 地址发送 GET 请求
+  > 启动 crud 实例的导出。向指定 REST 地址发送 GET _**(默认)**_ 请求
 - toImport(file/s) : Promise
-  > 启动 crud 实例的导入。向指定 REST 地址发送 POST 请求
+  > 启动 crud 实例的导入。向指定 REST 地址发送 POST _**(默认)**_ 请求
 - toAdd(...args)
   > 设置 form 状态为新增。
 - toEdit(row) : Promise
-  > 设置 form 状态为编辑。向指定 REST 地址发送 GET 请求
+  > 设置 form 状态为编辑。向指定 REST 地址发送 GET _**(默认)**_ 请求
 - toView(row) : Promise
-  > 设置 form 状态为查看。向指定 REST 地址发送 GET 请求
+  > 设置 form 状态为查看。向指定 REST 地址发送 GET _**(默认)**_ 请求
+- toSort()
+  > 启动 crud 实例的排序。向指定 REST 地址发送 PUT _**(默认)**_ 请求
+- toCopy()
+  > 启动 crud 实例的复制。向指定 REST 地址发送 POST _**(默认)**_ 请求
 - cancel()
   > 设置 form 状态为取消。
 - submit(formEl) : Promise
@@ -185,7 +197,7 @@ CRUD.RESTAPI = {
   > 获取行信息。通常用于 crud 内部
 - changeSelection(selection: Record<string, any>[])
   > 用在 table 的 selection-change 事件中，记录 table 当前已选记录
-- changeSort(sortData: {
+- changeOrder(sortData: {
   column: Record<string, any>
   prop: string
   order: string | null
@@ -194,41 +206,47 @@ CRUD.RESTAPI = {
 
 ## HOOKs
 
-- BEFORE_QUERY(crud,params,orders,cancel)
+- BEFORE_QUERY(crud,params,orders,cancel) _**async**_
   > 查询前回调，可以修改请求参数(params)，比如分页名称等，可取消。取消后不会触发 AFTER_QUERY  
   > **注意** ,params 为提交接口的实际对象（包含 query、pagination)，此处修改 crud.query/pagination 的内容不会提交到接口
-- AFTER_QUERY(crud,rs)
+- AFTER_QUERY(crud,rs) _**async**_
   > 查询后回调，可以获取查询结果，设置表格
-- BEFORE_DELETE(crud,rows,cancel)
+- BEFORE_DELETE(crud,rows,cancel) _**async**_
   > 删除前调用，可取消。取消后不会触发 AFTER_DELETE
-- AFTER_DELETE(crud,rs)
+- AFTER_DELETE(crud,rs,rows) _**async**_
   > 删除后调用
-- BEFORE_ADD(crud,...args)
-  > 新增前调用，可以用来清空表单或产生 uuid 等
-- BEFORE_EDIT_QUERY(crud,params,cancel)
-  > 发出编辑查询前调用，可取消。取消后不会触发 BEFORE_EDIT
-- BEFORE_EDIT(crud,rs)
-  > 编辑前调用，可以用来锁定某些字段
-- BEFORE_VIEW_QUERY(crud,params,cancel)
-  > 发出查看查询前调用，可取消。取消后不会触发 BEFORE_VIEW
-- BEFORE_VIEW(crud,rs)
-  > 查看查询结果返回后调用
-- BEFORE_SUBMIT(crud,cancel)
+- BEFORE_ADD(crud,cancel,...args) _**async**_
+  > 新增前调用，可以用来清空表单或产生 uuid 等。可取消，取消后表单状态不变
+- BEFORE_EDIT(crud,row,cancel,skip) _**async**_
+  > 编辑前调用，可以用来锁定某些字段。可取消，取消后表单状态不变; `skip()`用来跳过记录详情查询，跳过后不会触发 AFTER_DETAILS 
+- BEFORE_VIEW(crud,row,cancel,skip) _**async**_
+  > 查看前调用，可以用来对显示内容进行格式化等。可取消，取消后表单状态不变; `skip()`用来跳过记录详情查询，跳过后不会触发 AFTER_DETAILS 
+- AFTER_DETAILS(crud,rs) _**async**_
+  > 编辑/查看(默认)开启详情查询后触发
+- BEFORE_SUBMIT(crud,cancel,form) _**async**_
   > 提交前调用，可对 form 进行最后加工，可取消。取消后不会触发 AFTER_SUBMIT
-- AFTER_SUBMIT(crud,rs)
+- AFTER_SUBMIT(crud,rs) _**async**_
   > 提交后调用，可以用来刷新页面、发送通知或其他操作
-- BEFORE_EXPORT(crud,params,orders,cancel)
+- BEFORE_EXPORT(crud,params,orders,cancel) _**async**_
   > 导出前调用，同 BEFORE_QUERY，可取消。取消后不会触发 AFTER_EXPORT
-- AFTER_EXPORT(crud,rs)
+- AFTER_EXPORT(crud,rs) _**async**_
   > 获取导出数据后调用
+  > 表单取消编辑时触发（调用 cancel 后）
+- BEFORE_IMPORT(crud,params,cancel) _**async**_
+  > 导入文件上传前调用，可在 params 中添加额外参数，可取消。取消后不会触发 AFTER_IMPORT
+- AFTER_IMPORT(crud,rs) _**async**_
+  > 导入上传完成后调用
+- BEFORE_SORT(crud,sortation,cancel) _**async**_
+  > 排序前调用，可用来打开排序框或启动自动排序处理，可取消。取消后不会触发 AFTER_SORT
+- AFTER_SORT(crud,rs) _**async**_
+  > 提交排序后调用，可以用来刷新页面、发送通知或其他操作
+- BEFORE_COPY(crud,rows,cancel) _**async**_
+  > 复制记录前调用，可取消。取消后不会触发 AFTER_COPY
+- AFTER_COPY(crud,rs,rows) _**async**_
+  > 复制完成后调用
 - ON_ERROR(crud,error)
   > 操作发生错误时调用
 - ON_CANCEL(crud)
-  > 表单取消编辑时触发（调用 cancel 后）
-- BEFORE_IMPORT(crud,params,cancel)
-  > 导入文件上传前调用，可在 params 中添加额外参数，可取消。取消后不会触发 AFTER_IMPORT
-- AFTER_IMPORT(crud,rs)
-  > 导入上传完成后调用
 
 ## 错误信息
 

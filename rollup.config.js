@@ -10,7 +10,7 @@ const pkg = require('./package.json')
 export default [
   {
     input: './src/index.ts',
-    external: ['@holyhigh/func.js'],
+    external: ['myfx'],
     plugins: [
       clear({
         targets: ['dist'],
