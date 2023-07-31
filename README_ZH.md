@@ -165,14 +165,14 @@ CRUD.RESTAPI = {
 
 ## APIs
 
-- toQuery(query?:Record<string, any>) : Promise
+- toQuery(query?: Record<string, any>) : Promise
   > 启动 crud 实例的查询。向指定 REST 地址发送 GET 请求。query参数会与$crud.query进行[merge](https://holyhigh2.github.io/func.js/api/modules/object#merge)但不会修改$crud.query
-- toDelete(rows) : Promise
+- toDelete(rows: Record<string, unknown> | Record<string, unknown>[]) : Promise
   > 启动 crud 实例的删除。向指定 REST 地址发送 DELETE _**(默认)**_ 请求
 - toExport() : Promise
   > 启动 crud 实例的导出。向指定 REST 地址发送 GET _**(默认)**_ 请求
-- toImport(file/s) : Promise
-  > 启动 crud 实例的导入。向指定 REST 地址发送 POST _**(默认)**_ 请求
+- toImport(file: File | File[],fieldName?: string) : Promise
+  > 启动 crud 实例的导入。fieldName可指定服务端接收名称，如果为空，当file为单个对象时默认为`file`,当file为数组时默认为`files`。向指定 REST 地址发送 POST _**(默认)**_ 请求
 - toAdd(...args)
   > 设置 form 状态为新增。
 - toEdit(row) : Promise
@@ -232,8 +232,8 @@ CRUD.RESTAPI = {
 - AFTER_EXPORT(crud,rs) _**async**_
   > 获取导出数据后调用
   > 表单取消编辑时触发（调用 cancel 后）
-- BEFORE_IMPORT(crud,params,cancel) _**async**_
-  > 导入文件上传前调用，可在 params 中添加额外参数，可取消。取消后不会触发 AFTER_IMPORT
+- BEFORE_IMPORT(crud,params,file,cancel) _**async**_
+  > 导入文件上传前调用，可在 params 中添加额外参数，当file是数组时可修改上传数量；可取消。取消后不会触发 AFTER_IMPORT；
 - AFTER_IMPORT(crud,rs) _**async**_
   > 导入上传完成后调用
 - BEFORE_SORT(crud,sortation,cancel) _**async**_

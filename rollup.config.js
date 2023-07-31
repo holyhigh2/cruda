@@ -18,7 +18,6 @@ export default [
       typescript({
         clean: true
       }),
-      terser(),
       banner2(
         () => `/**
    * ${pkg.name} v${pkg.version}

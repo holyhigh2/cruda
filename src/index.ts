@@ -7,6 +7,7 @@ import { map, each, find } from "myfx/collection";
 import { remove } from "myfx/array";
 import { partial } from "myfx/function";
 import { trim } from "myfx/string";
+import { uuid } from "myfx/utils";
 import {
   isArray,
   isUndefined,
@@ -14,6 +15,7 @@ import {
   isFunction,
   isNull,
   isNil,
+  isEmpty,
 } from "myfx/is";
 import { merge, get } from "myfx/object";
 
@@ -108,10 +110,10 @@ class CRUD {
     },
   };
 
-  params: Record<string, any> = {};
-  vm: Record<string, unknown> = {};
-  private url = "";
-  private urlVar: Record<string, unknown> = {};
+  params: Record<string, any>;
+  vm: Record<string, unknown>;
+  private url:string;
+  private urlVar: Record<string, unknown>;
 
   view: Record<string, boolean | undefined> = {}; //业务组件通过view来控制UI
   loading = {
@@ -126,7 +128,7 @@ class CRUD {
     sort: false, //排序中
     copy: false, //复制中
   };
-  query = {}; //查询数据
+  query:Record<string, any> = {}; //查询数据
   table: {
     rowKey: string;
     data: Record<string, unknown>[];
@@ -142,7 +144,12 @@ class CRUD {
     allColumns: [], // 表格所有列，用于动态展示
     orders: [], // 排序列表
   };
-  pagination = {
+  pagination:{
+    pageSize:number,
+    currentPage:number,
+    total:number,
+    [k:string]:any
+  } = {
     _pageSize: 0,
     set pageSize(v: number) {
       this._pageSize = v;
@@ -158,8 +165,8 @@ class CRUD {
     total: 0,
   };
   sortation = {}; //排序对象
-  formStatus = 0; // 1：新增；2：编辑；3：查看。适用于组合弹窗或细分弹窗
-  form = {};
+  formStatus:number = 0; // 1：新增；2：编辑；3：查看。适用于组合弹窗或细分弹窗
+  form:Record<string, any> = {};
   error = {
     name: "",
     message: "",
@@ -167,16 +174,39 @@ class CRUD {
   };
 
   constructor(restURL: string | RestUrl) {
+    let url
     if (isObject(restURL)) {
       const p = restURL;
-      this.url = p.url;
+      url = p.url;
       this.params = Object.freeze(p);
     } else {
-      this.url = restURL;
+      url = restURL;
     }
-    if (!trim(this.url)) {
+    if (!trim(url)) {
       throw new Error("The URL can not be empty");
     }
+
+    Object.defineProperties(this, {
+      url:{
+        value: url,
+        configurable:false,
+        writable: false
+      },
+      urlVar:{
+        value: {},
+        configurable:false,
+        writable: true
+      },
+      error:{
+        configurable:false,
+        writable: false
+      }
+    });
+    // Object.defineProperty(this.pagination,'_pageSize',{
+    //   value:0,
+    //   configurable:false,
+    //   writable: true
+    // })
 
     const viewProps: { [key: string]: unknown } = {};
     each<string>(VIEW_PROPS, (prop) => {
@@ -340,7 +370,7 @@ class CRUD {
 
     return rs;
   }
-  async toImport(file: File | File[]): Promise<unknown> {
+  async toImport(file: File | File[],fieldName:string): Promise<unknown> {
     const params = {};
 
     let proceed = true;
@@ -348,6 +378,7 @@ class CRUD {
       CRUD.HOOK.BEFORE_IMPORT,
       this,
       params,
+      file,
       () => (proceed = false)
     );
     if (!proceed) return;
@@ -357,7 +388,7 @@ class CRUD {
     let rs;
     let error;
     try {
-      rs = await this.doImport(file, params);
+      rs = await this.doImport(file, params,fieldName);
 
       await callHook(CRUD.HOOK.AFTER_IMPORT, this, rs);
       this.loading.import = false;
@@ -655,7 +686,8 @@ class CRUD {
   // 执行导入操作
   private doImport(
     file: File | File[],
-    params: Record<string, unknown>
+    params: Record<string, unknown>,
+    fieldName:string
   ): Promise<unknown> {
     const data = new FormData();
 
@@ -664,9 +696,9 @@ class CRUD {
     });
 
     if (isArray(file)) {
-      each<File>(file, (f) => data.append("files", f));
+      each<File>(file, (f) => data.append(fieldName||"files", f));
     } else {
-      data.append("file", file);
+      data.append(fieldName||"file", file);
     }
 
     return CRUD.request({
@@ -703,9 +735,17 @@ class CRUD {
  */
 async function callHook(hookName: string, crud: CRUD, ...args: unknown[]) {
   const defaultHook = CRUD.defaults[hookName];
-  const instanceHook = crud.vm[hookName];
+  //1. default
   if (isFunction(defaultHook)) await defaultHook(crud, ...args);
-  if (isFunction(instanceHook)) await instanceHook(crud, ...args);
+  //2. instance
+  let instanceHooks = HOOK_MAP[get(crud,'__crud_hid_') as string]
+  if(!isEmpty(instanceHooks)){
+    for(let i=0;i<instanceHooks.length;i++){
+      let [hn,hook,vm] = instanceHooks[i]
+      if (hn === hookName && isFunction(hook)) await hook.call(vm,crud, ...args);
+    }
+  }
+  
   if (hookName === CRUD.HOOK.ON_ERROR) {
     const e = args[0] as CRUDError;
 
@@ -727,6 +767,70 @@ export function crudWarn(...args: unknown[]): void {
 // eslint-disable-next-line require-jsdoc
 export function crudError(...args: unknown[]): void {
   console.error("[CRUD] - ", ...args);
+}
+
+const HOOK_MAP:{[key:string]:Array<any>} = {}
+
+//用于适配器调用。返回一个/多个crud实例
+export function _newCrud(restURL: string | RestUrl, vm: Record<string, any>):CRUD{
+  const nid = uuid()
+  HOOK_MAP[nid] = []
+  const crud = new CRUD(restURL)
+  Object.defineProperty(crud,'__crud_hid_',{
+    value:nid,
+    enumerable:false,
+    configurable:false
+  })
+
+  Object.defineProperties(vm, {
+    __crud_:{
+      value: crud,
+      enumerable: false,
+      writable:true
+    },
+    __crud_nid_:{
+      value: nid,
+      enumerable: false,
+    }
+  })
+  return crud
+}
+export function _newCruds(restURL: Record<string, string | RestUrl>, vm: Record<string, any>):Record<string, CRUD>{
+  const cruds:Record<string, CRUD> = {}
+  
+  const nid = uuid()
+  HOOK_MAP[nid] = []
+
+  each(restURL, (v: RestUrl | string, k: string) => {
+    const crud = new CRUD(v)
+    Object.defineProperty(crud,'__crud_hid_',{
+      value:nid,
+      enumerable:false,
+      configurable:false
+    })
+    cruds[k] = crud
+  })
+
+  Object.defineProperties(vm, {
+    __cruds_:{
+      value: cruds,
+      enumerable: false,
+      writable:true
+    },
+    __crud_nid_:{
+      value: nid,
+      enumerable: false,
+    }
+  })
+  return cruds
+}
+
+export function _onHook(nid:string, hookName: string, hook: (crud: CRUD, ...args: any[]) => void,vm: Record<string, any>):()=>void{
+  const hid = uuid()
+  HOOK_MAP[nid].push([hookName,hook,vm,hid])
+  return ()=>{
+    remove(HOOK_MAP[nid],item=>item[3] === hid)    
+  }
 }
 
 export { RestUrl } from "./types";

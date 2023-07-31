@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0] - 2023/7/30 ⚠️BreakChange
+### Add
+- Hooks - Multi hooks
+- API - onHook for any adapter
+### Optimize
+- doImport - New param 'fieldName'
+
 ## [1.1.0] - 2023/7/15 ⚠️BreakChange
 ### Add
 - Async Hooks

@@ -164,14 +164,14 @@ CRUD.RESTAPI = {
 
 ### Methods
 
-- toQuery(query?:Record<string, any>) : Promise
+- toQuery(query?: Record<string, any>) : Promise
   > Instance query. Send GET request to the backend。The argument 'query' will [merge](https://holyhigh2.github.io/func.js/api/modules/object#merge) with the $crud.query
-- toDelete(rows) : Promise
+- toDelete(rows: Record<string, unknown> | Record<string, unknown>[]) : Promise
   > Instance del. Send DELETE request to the backend
 - toExport() : Promise
   > Instance export. Send GET request to the backend
-- toImport(file/s) : Promise
-  > Instance import. Send POST request to the backend
+- toImport(file: File | File[],fieldName) : Promise
+  > Instance import.Use `fieldName` to specify the fileName of server request。 Send POST request to the backend
 - toAdd(...args)
   > Set `formStatus` to 'Add'
 - toEdit(row) : Promise
@@ -225,7 +225,7 @@ CRUD.RESTAPI = {
   > Emit before export. Cancellable, if be cancelled the `AFTER_EXPORT` will not emit
 - AFTER_EXPORT(crud,rs) _**async**_
   > Emit after export complete
-- BEFORE_IMPORT(crud,params,cancel) _**async**_
+- BEFORE_IMPORT(crud,params,file,cancel) _**async**_
   > Emit before import. Can modify the params before request send. Cancellable, if be cancelled the `AFTER_IMPORT` will not emit
 - AFTER_IMPORT(crud,rs) _**async**_
   > Emit after import complete
