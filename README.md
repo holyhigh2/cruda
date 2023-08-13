@@ -217,7 +217,7 @@ CRUD.RESTAPI = {
   > Emit before edit. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
 - BEFORE_VIEW(crud,row,cancel,skip) _**async**_
   > Emit before view. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
-- AFTER_DETAILS(crud,rs, 'edit/view') _**async**_
+- AFTER_DETAILS(crud,rs) _**async**_
   > Emit after `toEdit/toView` and is not skipped by `skip()`
 - AFTER_DETAILS_EDIT(crud,rs) _**async**_
   > Emit after `toEdit` and `AFTER_DETAILS`
