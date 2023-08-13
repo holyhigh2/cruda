@@ -92,7 +92,7 @@ CRUD.defaults.view.queryReset = true
 CRUD.defaults.table.rowKey = 'id'
 ```
 ### 8. RESTAPI
-You can modify the URL to adapt to the backend service
+You can modify the URL/Method to adapt to the backend service
 ```js
 CRUD.RESTAPI = {
   QUERY: { url: "", method: "GET" },
@@ -183,13 +183,13 @@ CRUD.RESTAPI = {
 - submit(formEl) : Promise
   > Call formEl.validate() and invoke doAdd(POST)/doEdit(PUT) if validation succeeded else return invalidFields in catch method
 - reload() : Promise
-  > reset pagination and call toQuery()
+  > Reset pagination and call toQuery()
 - getRestURL()
-  > return restUrl of instance
+  > Return restUrl of instance
 - setURLParams(paramObj)
-  > set url params
+  > Set url params
 - getDetails(rowId)
-  > return row data
+  > Return row data
 - changeSelection(selection: Record<string, any>[])
   > Usually used in row selection event like `selection-change` in `element-ui`
 - changeOrder(sortData: {
@@ -198,6 +198,8 @@ CRUD.RESTAPI = {
   order: string | null
   })
   > Usually used in table sort event like `sort-change` in `element-ui`, it will call `toQuery()` automatically
+- getContext()
+  > Return the context of the crud 
 
 ### HOOKs
 
@@ -215,8 +217,12 @@ CRUD.RESTAPI = {
   > Emit before edit. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
 - BEFORE_VIEW(crud,row,cancel,skip) _**async**_
   > Emit before view. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
-- AFTER_DETAILS(crud,rs) _**async**_
-  > Emit after toEdit/toView and not be skipped by `skip()`
+- AFTER_DETAILS(crud,rs, 'edit/view') _**async**_
+  > Emit after `toEdit/toView` and is not skipped by `skip()`
+- AFTER_DETAILS_EDIT(crud,rs) _**async**_
+  > Emit after `toEdit` and `AFTER_DETAILS`
+- AFTER_DETAILS_VIEW(crud,rs) _**async**_
+  > Emit after `toView` and `AFTER_DETAILS`
 - BEFORE_SUBMIT(crud,cancel,form) _**async**_
   > Emit before form submit. Cancellable, if be cancelled the `AFTER_SUBMIT` will not emit
 - AFTER_SUBMIT(crud,rs) _**async**_

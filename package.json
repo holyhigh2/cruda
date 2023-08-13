@@ -1,11 +1,10 @@
 {
   "name": "cruda",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A CRUD viewmodal, provides unified APIs for different UIFrameworks",
   "main": "index.js",
   "module": "index.js",
   "types": "index.d.ts",
-  "type": "module",
   "author": "holyhigh2",
   "license": "MIT",
   "repository": {

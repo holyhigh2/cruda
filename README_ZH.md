@@ -92,7 +92,7 @@ CRUD.defaults.view.queryReset = true
 CRUD.defaults.table.rowKey = 'id'
 ```
 ### 8. RESTAPI
-可以修改API地址来适配后端服务
+可以修改API地址/请求方法来适配后端服务
 ```js
 CRUD.RESTAPI = {
   QUERY: { url: "", method: "GET" },
@@ -203,6 +203,8 @@ CRUD.RESTAPI = {
   order: string | null
   })
   > 用在 table 的 sort-change 事件，会自动管理排序信息并触发查询
+- getContext()
+  > 获取crud实例所在的上下文
 
 ## HOOKs
 
@@ -223,6 +225,10 @@ CRUD.RESTAPI = {
   > 查看前调用，可以用来对显示内容进行格式化等。可取消，取消后表单状态不变; `skip()`用来跳过记录详情查询，跳过后不会触发 AFTER_DETAILS 
 - AFTER_DETAILS(crud,rs) _**async**_
   > 编辑/查看(默认)开启详情查询后触发
+- AFTER_DETAILS_EDIT(crud,rs) _**async**_
+  > 编辑开启详情查询后触发，在`AFTER_DETAILS`之后
+- AFTER_DETAILS_VIEW(crud,rs) _**async**_
+  > 查看(默认)开启详情查询后触发，在`AFTER_DETAILS`之后
 - BEFORE_SUBMIT(crud,cancel,form) _**async**_
   > 提交前调用，可对 form 进行最后加工，可取消。取消后不会触发 AFTER_SUBMIT
 - AFTER_SUBMIT(crud,rs) _**async**_

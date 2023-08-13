@@ -17,7 +17,7 @@ import {
   isNil,
   isEmpty,
 } from "myfx/is";
-import { merge, get } from "myfx/object";
+import { merge, get, set } from "myfx/object";
 
 import { RestUrl, CRUDError, Pagination } from "./types";
 
@@ -59,6 +59,8 @@ class CRUD {
     BEFORE_ADD: "CRUD_BEFORE_ADD", // 新增前调用，可以用来清空表单或产生uuid等
     BEFORE_EDIT: "CRUD_BEFORE_EDIT", // 编辑前调用，可以用来锁定某些字段等
     BEFORE_VIEW: "CRUD_BEFORE_VIEW", // 查看前调用
+    AFTER_DETAILS_VIEW: "CRUD_AFTER_DETAILS_VIEW", //查询时开启查询详情后触发
+    AFTER_DETAILS_EDIT: "CRUD_AFTER_DETAILS_EDIT", //编辑时开启查询详情后触发
     AFTER_DETAILS: "CRUD_AFTER_DETAILS", //查询/编辑时开启查询详情后触发
     BEFORE_SUBMIT: "CRUD_BEFORE_SUBMIT", // 提交前调用，可以用来处理form字段
     AFTER_SUBMIT: "CRUD_AFTER_SUBMIT", // 提交后调用，可以用来刷新页面、发送通知或者其他操作
@@ -202,11 +204,6 @@ class CRUD {
         writable: false
       }
     });
-    // Object.defineProperty(this.pagination,'_pageSize',{
-    //   value:0,
-    //   configurable:false,
-    //   writable: true
-    // })
 
     const viewProps: { [key: string]: unknown } = {};
     each<string>(VIEW_PROPS, (prop) => {
@@ -257,6 +254,10 @@ class CRUD {
   getRestURL(): string {
     const params = this.urlVar;
     return this.url.replace(/:([^:]+?)(\/|$)/gm, (a, b, c) => params[b] + c);
+  }
+
+  getContext(): any{
+    return CONTEXT_MAP.get(this)
   }
 
   async toQuery(query?: Record<string, any>): Promise<unknown> {
@@ -475,6 +476,7 @@ class CRUD {
       try {
         rs = await this.getDetails(id, params);
         await callHook(CRUD.HOOK.AFTER_DETAILS, this, rs);
+        await callHook(CRUD.HOOK.AFTER_DETAILS_EDIT, this, rs);
       } catch (e) {
         this.loading.form = false;
         callHook(CRUD.HOOK.ON_ERROR, this, e);
@@ -525,6 +527,7 @@ class CRUD {
       try {
         rs = await this.getDetails(id, params);
         await callHook(CRUD.HOOK.AFTER_DETAILS, this, rs);
+        await callHook(CRUD.HOOK.AFTER_DETAILS_VIEW, this, rs);
       } catch (e) {
         this.loading.form = false;
         callHook(CRUD.HOOK.ON_ERROR, this, e);
@@ -738,11 +741,11 @@ async function callHook(hookName: string, crud: CRUD, ...args: unknown[]) {
   //1. default
   if (isFunction(defaultHook)) await defaultHook(crud, ...args);
   //2. instance
-  let instanceHooks = HOOK_MAP[get(crud,'__crud_hid_') as string]
+  let instanceHooks = get<Array<any>>(HOOK_MAP[get(crud, '__crud_hid_') as string],hookName) 
   if(!isEmpty(instanceHooks)){
     for(let i=0;i<instanceHooks.length;i++){
-      let [hn,hook,vm] = instanceHooks[i]
-      if (hn === hookName && isFunction(hook)) await hook.call(vm,crud, ...args);
+      let [hook,vm] = instanceHooks[i]
+      if (isFunction(hook)) await hook.call(vm,crud, ...args);
     }
   }
   
@@ -769,18 +772,21 @@ export function crudError(...args: unknown[]): void {
   console.error("[CRUD] - ", ...args);
 }
 
-const HOOK_MAP:{[key:string]:Array<any>} = {}
+const HOOK_MAP: { [key: string]: Record<string, Array<any>> } = {}
+const CONTEXT_MAP = new WeakMap()
 
 //用于适配器调用。返回一个/多个crud实例
 export function _newCrud(restURL: string | RestUrl, vm: Record<string, any>):CRUD{
   const nid = uuid()
-  HOOK_MAP[nid] = []
+  HOOK_MAP[nid] = {}
   const crud = new CRUD(restURL)
   Object.defineProperty(crud,'__crud_hid_',{
     value:nid,
     enumerable:false,
     configurable:false
   })
+
+  CONTEXT_MAP.set(crud,vm)
 
   Object.defineProperties(vm, {
     __crud_:{
@@ -799,7 +805,7 @@ export function _newCruds(restURL: Record<string, string | RestUrl>, vm: Record<
   const cruds:Record<string, CRUD> = {}
   
   const nid = uuid()
-  HOOK_MAP[nid] = []
+  HOOK_MAP[nid] = {}
 
   each(restURL, (v: RestUrl | string, k: string) => {
     const crud = new CRUD(v)
@@ -809,6 +815,7 @@ export function _newCruds(restURL: Record<string, string | RestUrl>, vm: Record<
       configurable:false
     })
     cruds[k] = crud
+    CONTEXT_MAP.set(crud, vm)
   })
 
   Object.defineProperties(vm, {
@@ -827,9 +834,14 @@ export function _newCruds(restURL: Record<string, string | RestUrl>, vm: Record<
 
 export function _onHook(nid:string, hookName: string, hook: (crud: CRUD, ...args: any[]) => void,vm: Record<string, any>):()=>void{
   const hid = uuid()
-  HOOK_MAP[nid].push([hookName,hook,vm,hid])
+  let hooks = get<Array<any>>(HOOK_MAP, [nid,hookName]) 
+  if (!hooks){
+    hooks = []
+    set(HOOK_MAP, [nid, hookName], hooks)
+  }
+  hooks.push([hook,vm,hid])
   return ()=>{
-    remove(HOOK_MAP[nid],item=>item[3] === hid)    
+    remove(HOOK_MAP[nid][hookName],item=>item[3] === hid)    
   }
 }
 
