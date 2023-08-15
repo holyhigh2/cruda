@@ -154,8 +154,6 @@ CRUD.RESTAPI = {
   > 表单容器托管当前 crud 实例的表单数据
 - formStatus
   > 表单当前状态 0：默认；1：新增；2：编辑；3：查看
-- vm
-  > crud 的入口 vue 实例
 - params
   > crud 激活参数，通过对象方式构造 crud 时可以注入。可用于自定义组件中进行附加操作，比如附加 CRUD 权限控制
 - error
@@ -185,8 +183,8 @@ CRUD.RESTAPI = {
   > 启动 crud 实例的复制。向指定 REST 地址发送 POST _**(默认)**_ 请求
 - cancel()
   > 设置 form 状态为取消。
-- submit(formEl) : Promise
-  > 会调用 formEl 的 validate 方法，并在成功后执行 doAdd(POST)/doEdit(PUT)操作。对于验证错误，catch 中会返回 invalidFields
+- submit(...args) : Promise
+  > args参数会传递给 `BEFORE_SUBMIT` 并可自行实现校验逻辑
 - reload() : Promise
   > 重置分页信息并执行一次 toQuery()
 - getRestURL()
@@ -229,8 +227,8 @@ CRUD.RESTAPI = {
   > 编辑开启详情查询后触发，在`AFTER_DETAILS`之后
 - AFTER_DETAILS_VIEW(crud,rs) _**async**_
   > 查看(默认)开启详情查询后触发，在`AFTER_DETAILS`之后
-- BEFORE_SUBMIT(crud,cancel,form) _**async**_
-  > 提交前调用，可对 form 进行最后加工，可取消。取消后不会触发 AFTER_SUBMIT
+- BEFORE_SUBMIT(crud,cancel,filterForm,...args) _**async**_
+  > 提交前调用，可对 form 进行最后加工，可取消。取消后不会触发 `AFTER_SUBMIT`。`filterForm(formObject)`用于设置提交到后台的form数据，默认`crud.form`
 - AFTER_SUBMIT(crud,rs) _**async**_
   > 提交后调用，可以用来刷新页面、发送通知或其他操作
 - BEFORE_EXPORT(crud,params,orders,cancel) _**async**_

@@ -153,8 +153,6 @@ CRUD.RESTAPI = {
   > Form data container
 - formStatus
   > form state. 0：Normal；1：Add；2：Edit；3：View
-- vm
-  > crud entry
 - params
   > crud active params
 - error
@@ -180,8 +178,8 @@ CRUD.RESTAPI = {
   > Set `formStatus` to 'View' and send GET request to the backend
 - cancel()
   > Set `formStatus` to 'Normal'
-- submit(formEl) : Promise
-  > Call formEl.validate() and invoke doAdd(POST)/doEdit(PUT) if validation succeeded else return invalidFields in catch method
+- submit(...args) : Promise
+  > Pass args to `BEFORE_SUBMIT`
 - reload() : Promise
   > Reset pagination and call toQuery()
 - getRestURL()
@@ -223,8 +221,8 @@ CRUD.RESTAPI = {
   > Emit after `toEdit` and `AFTER_DETAILS`
 - AFTER_DETAILS_VIEW(crud,rs) _**async**_
   > Emit after `toView` and `AFTER_DETAILS`
-- BEFORE_SUBMIT(crud,cancel,form) _**async**_
-  > Emit before form submit. Cancellable, if be cancelled the `AFTER_SUBMIT` will not emit
+- BEFORE_SUBMIT(crud,cancel,filterForm,...args) _**async**_
+  > Emit before form submit. Cancellable, if be cancelled the `AFTER_SUBMIT` will not emit. Use `filterForm(formObject)` to set form-data to submit
 - AFTER_SUBMIT(crud,rs) _**async**_
   > Emit after form submit. Can reload page, send notice here
 - BEFORE_EXPORT(crud,params,orders,cancel) _**async**_

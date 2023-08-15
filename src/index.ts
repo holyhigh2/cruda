@@ -587,14 +587,16 @@ class CRUD {
 
   // 提交表单
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async submit(_form: unknown): Promise<unknown> {
+  async submit(...args: unknown[]): Promise<unknown> {
     let rs;
     let proceed = true;
+    let submitForm;
     await callHook(
       CRUD.HOOK.BEFORE_SUBMIT,
       this,
       () => (proceed = false),
-      _form
+      (form:Record<string,any>) => (submitForm = form),
+      ...args
     );
     if (!proceed) return;
 
@@ -603,9 +605,9 @@ class CRUD {
     let error;
     try {
       if (this.formStatus === 1) {
-        rs = await this.doAdd();
+        rs = await this.doAdd(submitForm);
       } else if (this.formStatus === 2) {
-        rs = await this.doUpdate();
+        rs = await this.doUpdate(submitForm);
       } else {
         crudWarn(
           `formStatus '${this.formStatus}' is not submittable, it should be 1(add)/2(update)`,
@@ -650,20 +652,20 @@ class CRUD {
   }
 
   // 执行新增操作
-  private doAdd(): Promise<unknown> {
+  private doAdd(form:Record<string, unknown>|undefined): Promise<unknown> {
     return CRUD.request({
       url: this.getRestURL() + CRUD.RESTAPI.ADD.url,
       method: CRUD.RESTAPI.ADD.method,
-      data: this.form,
+      data: form || this.form,
     });
   }
 
   // 执行编辑操作
-  private doUpdate(): Promise<unknown> {
+  private doUpdate(form:Record<string, unknown>|undefined): Promise<unknown> {
     return CRUD.request({
       url: this.getRestURL() + CRUD.RESTAPI.UPDATE.url,
       method: CRUD.RESTAPI.UPDATE.method,
-      data: this.form,
+      data: form || this.form,
     });
   }
 
