@@ -28,7 +28,7 @@ function viewGetter(prop: string, bind: CRUD["view"]): boolean {
   const v = bind["_" + prop];
   if (!isNil(v)) return v as boolean;
   return isUndefined(CRUD.defaults.view[prop])
-    ? true
+    ? false
     : CRUD.defaults.view[prop] || false;
 }
 
@@ -112,8 +112,7 @@ class CRUD {
     },
   };
 
-  params: Record<string, any>;
-  vm: Record<string, unknown>;
+  params: Record<string, any> = {};
   private url:string;
   private urlVar: Record<string, unknown>;
 
@@ -746,8 +745,8 @@ async function callHook(hookName: string, crud: CRUD, ...args: unknown[]) {
   let instanceHooks = get<Array<any>>(HOOK_MAP[get(crud, '__crud_hid_') as string],hookName) 
   if(!isEmpty(instanceHooks)){
     for(let i=0;i<instanceHooks.length;i++){
-      let [hook,vm] = instanceHooks[i]
-      if (isFunction(hook)) await hook.call(vm,crud, ...args);
+      let [hook,context] = instanceHooks[i]
+      if (isFunction(hook)) await hook.call(context,crud, ...args);
     }
   }
   
@@ -778,7 +777,7 @@ const HOOK_MAP: { [key: string]: Record<string, Array<any>> } = {}
 const CONTEXT_MAP = new WeakMap()
 
 //用于适配器调用。返回一个/多个crud实例
-export function _newCrud(restURL: string | RestUrl, vm: Record<string, any>):CRUD{
+export function _newCrud(restURL: string | RestUrl, context: Record<string, any>):CRUD{
   const nid = uuid()
   HOOK_MAP[nid] = {}
   const crud = new CRUD(restURL)
@@ -788,9 +787,9 @@ export function _newCrud(restURL: string | RestUrl, vm: Record<string, any>):CRU
     configurable:false
   })
 
-  CONTEXT_MAP.set(crud,vm)
+  CONTEXT_MAP.set(crud,context)
 
-  Object.defineProperties(vm, {
+  Object.defineProperties(context, {
     __crud_:{
       value: crud,
       enumerable: false,
@@ -803,7 +802,7 @@ export function _newCrud(restURL: string | RestUrl, vm: Record<string, any>):CRU
   })
   return crud
 }
-export function _newCruds(restURL: Record<string, string | RestUrl>, vm: Record<string, any>):Record<string, CRUD>{
+export function _newCruds(restURL: Record<string, string | RestUrl>, context: Record<string, any>):Record<string, CRUD>{
   const cruds:Record<string, CRUD> = {}
   
   const nid = uuid()
@@ -817,10 +816,10 @@ export function _newCruds(restURL: Record<string, string | RestUrl>, vm: Record<
       configurable:false
     })
     cruds[k] = crud
-    CONTEXT_MAP.set(crud, vm)
+    CONTEXT_MAP.set(crud, context)
   })
 
-  Object.defineProperties(vm, {
+  Object.defineProperties(context, {
     __cruds_:{
       value: cruds,
       enumerable: false,
@@ -834,14 +833,14 @@ export function _newCruds(restURL: Record<string, string | RestUrl>, vm: Record<
   return cruds
 }
 
-export function _onHook(nid:string, hookName: string, hook: (crud: CRUD, ...args: any[]) => void,vm: Record<string, any>):()=>void{
+export function _onHook(nid:string, hookName: string, hook: (crud: CRUD, ...args: any[]) => void,context: Record<string, any>):()=>void{
   const hid = uuid()
   let hooks = get<Array<any>>(HOOK_MAP, [nid,hookName]) 
   if (!hooks){
     hooks = []
     set(HOOK_MAP, [nid, hookName], hooks)
   }
-  hooks.push([hook,vm,hid])
+  hooks.push([hook,context,hid])
   return ()=>{
     remove(HOOK_MAP[nid][hookName],item=>item[3] === hid)    
   }
