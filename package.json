@@ -1,6 +1,6 @@
 {
   "name": "cruda",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "A CRUD viewmodal, provides unified APIs for different UIFrameworks",
   "main": "index.js",
   "module": "index.js",

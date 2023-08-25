@@ -62,23 +62,23 @@ $crud.doUpdate() //PUT
 
 ## 使用
 ### 1. 安装
-- [cruda-adapter-element-ui](https://github.com/holyhigh2/cruda-element-ui)
-- [cruda-adapter-element-plus](https://github.com/holyhigh2/cruda-element-plus)
+- [cruda-adapter-element-ui](https://gitee.com/holyhigh2/cruda-element-ui)
+- [cruda-adapter-element-plus](https://gitee.com/holyhigh2/cruda-element-plus)
 ### 2. 激活
-- [cruda-adapter-element-ui](https://github.com/holyhigh2/cruda-element-ui)
-- [cruda-adapter-element-plus](https://github.com/holyhigh2/cruda-element-plus)
+- [cruda-adapter-element-ui](https://gitee.com/holyhigh2/cruda-element-ui)
+- [cruda-adapter-element-plus](https://gitee.com/holyhigh2/cruda-element-plus)
 ### 3. 多实例
-- [cruda-adapter-element-ui](https://github.com/holyhigh2/cruda-element-ui)
-- [cruda-adapter-element-plus](https://github.com/holyhigh2/cruda-element-plus)
+- [cruda-adapter-element-ui](https://gitee.com/holyhigh2/cruda-element-ui)
+- [cruda-adapter-element-plus](https://gitee.com/holyhigh2/cruda-element-plus)
 ### 4. 钩子
-- [cruda-adapter-element-ui](https://github.com/holyhigh2/cruda-element-ui)
-- [cruda-adapter-element-plus](https://github.com/holyhigh2/cruda-element-plus)
+- [cruda-adapter-element-ui](https://gitee.com/holyhigh2/cruda-element-ui)
+- [cruda-adapter-element-plus](https://gitee.com/holyhigh2/cruda-element-plus)
 ### 5. 自定义组件
-- [cruda-adapter-element-ui](https://github.com/holyhigh2/cruda-element-ui)
-- [cruda-adapter-element-plus](https://github.com/holyhigh2/cruda-element-plus)
+- [cruda-adapter-element-ui](https://gitee.com/holyhigh2/cruda-element-ui)
+- [cruda-adapter-element-plus](https://gitee.com/holyhigh2/cruda-element-plus)
 ### 6. URL 参数
-- [cruda-adapter-element-ui](https://github.com/holyhigh2/cruda-element-ui)
-- [cruda-adapter-element-plus](https://github.com/holyhigh2/cruda-element-plus)
+- [cruda-adapter-element-ui](https://gitee.com/holyhigh2/cruda-element-ui)
+- [cruda-adapter-element-plus](https://gitee.com/holyhigh2/cruda-element-plus)
 ### 7. 全局默认值
 当项目中存在通用的CRUD场景时，可以设置全局默认值/钩子/...
 ```ts
@@ -177,9 +177,9 @@ CRUD.RESTAPI = {
   > 设置 form 状态为编辑。向指定 REST 地址发送 GET _**(默认)**_ 请求
 - toView(row) : Promise
   > 设置 form 状态为查看。向指定 REST 地址发送 GET _**(默认)**_ 请求
-- toSort()
+- toSort() : Promise
   > 启动 crud 实例的排序。向指定 REST 地址发送 PUT _**(默认)**_ 请求
-- toCopy()
+- toCopy() : Promise
   > 启动 crud 实例的复制。向指定 REST 地址发送 POST _**(默认)**_ 请求
 - cancel()
   > 设置 form 状态为取消。
@@ -187,11 +187,11 @@ CRUD.RESTAPI = {
   > args参数会传递给 `BEFORE_SUBMIT` 并可自行实现校验逻辑
 - reload() : Promise
   > 重置分页信息并执行一次 toQuery()
-- getRestURL()
+- getRestURL() : string
   > 获取 crud 实例的服务地址。通常用于 crud 内部
 - setURLParams(paramObj)
   > 设置服务地址中的参数表
-- getDetails(rowId)
+- getDetails(rowId) : Promise
   > 获取行信息。通常用于 crud 内部
 - changeSelection(selection: Record<string, any>[])
   > 用在 table 的 selection-change 事件中，记录 table 当前已选记录
@@ -216,7 +216,7 @@ CRUD.RESTAPI = {
 - AFTER_DELETE(crud,rs,rows) _**async**_
   > 删除后调用
 - BEFORE_ADD(crud,cancel,...args) _**async**_
-  > 新增前调用，可以用来清空表单或产生 uuid 等。可取消，取消后表单状态不变
+  > 新增前调用，可以用来清空表单或产生 uuid 等。可取消，取消后表单状态不变。*...args* 来自`toAdd()`
 - BEFORE_EDIT(crud,row,cancel,skip) _**async**_
   > 编辑前调用，可以用来锁定某些字段。可取消，取消后表单状态不变; `skip()`用来跳过记录详情查询，跳过后不会触发 AFTER_DETAILS 
 - BEFORE_VIEW(crud,row,cancel,skip) _**async**_
@@ -227,8 +227,8 @@ CRUD.RESTAPI = {
   > 编辑开启详情查询后触发，在`AFTER_DETAILS`之后
 - AFTER_DETAILS_VIEW(crud,rs) _**async**_
   > 查看(默认)开启详情查询后触发，在`AFTER_DETAILS`之后
-- BEFORE_SUBMIT(crud,cancel,filterForm,...args) _**async**_
-  > 提交前调用，可对 form 进行最后加工，可取消。取消后不会触发 `AFTER_SUBMIT`。`filterForm(formObject)`用于设置提交到后台的form数据，默认`crud.form`
+- BEFORE_SUBMIT(crud,cancel,setForm,...args) _**async**_
+  > 提交前调用，可对 form 进行最后加工，可取消。取消后不会触发 `AFTER_SUBMIT`。`setForm(formObject)`用于设置提交到后台的form数据，默认`crud.form`
 - AFTER_SUBMIT(crud,rs) _**async**_
   > 提交后调用，可以用来刷新页面、发送通知或其他操作
 - BEFORE_EXPORT(crud,params,orders,cancel) _**async**_
@@ -262,3 +262,6 @@ CRUD.RESTAPI = {
   > 安装时未指定请求器。解决方法见【1. 安装】
 - table.rowKey is a blank value 'Xxx', it may cause an error - toDelete/Edit/View()
   > 进行删除/编辑/查看操作时未指定 table.rowKey。可以设置默认/$crud 实例的对应属性
+
+## 工作流图
+![Cruda Workflow](./workflow.jpg)

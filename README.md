@@ -169,24 +169,28 @@ CRUD.RESTAPI = {
 - toExport() : Promise
   > Instance export. Send GET request to the backend
 - toImport(file: File | File[],fieldName) : Promise
-  > Instance import.Use `fieldName` to specify the fileName of server request。 Send POST request to the backend
+  > Instance import. Use `fieldName` to specify the fileName of server request。 Send POST request to the backend
 - toAdd(...args)
   > Set `formStatus` to 'Add'
 - toEdit(row) : Promise
-  > Set `formStatus` to 'Edit' and send GET request to the backend
+  > Set `formStatus` to 'Edit' and send GET _**(default)**_ request to the backend
 - toView(row) : Promise
-  > Set `formStatus` to 'View' and send GET request to the backend
+  > Set `formStatus` to 'View' and send GET _**(default)**_ request to the backend
+- toSort() : Promise
+  > Instance sort. Send PUT _**(default)**_ request to the backend
+- toCopy() : Promise
+  > Instance copy. Send POST _**(default)**_ request to the backend
 - cancel()
   > Set `formStatus` to 'Normal'
 - submit(...args) : Promise
   > Pass args to `BEFORE_SUBMIT`
 - reload() : Promise
   > Reset pagination and call toQuery()
-- getRestURL()
+- getRestURL() : string
   > Return restUrl of instance
 - setURLParams(paramObj)
   > Set url params
-- getDetails(rowId)
+- getDetails(rowId) : Promise
   > Return row data
 - changeSelection(selection: Record<string, any>[])
   > Usually used in row selection event like `selection-change` in `element-ui`
@@ -210,7 +214,7 @@ CRUD.RESTAPI = {
 - AFTER_DELETE(crud,rs,rows) _**async**_
   > Emit after delete
 - BEFORE_ADD(crud,cancel,...args) _**async**_
-  > Emit before add. Can clear the form data or generate a UUID. Cancellable,if be cancelled the `formStatus` will not be change
+  > Emit before add. Can clear the form data or generate a UUID. Cancellable,if be cancelled the `formStatus` will not be change. *...args* from `toAdd()`
 - BEFORE_EDIT(crud,row,cancel,skip) _**async**_
   > Emit before edit. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
 - BEFORE_VIEW(crud,row,cancel,skip) _**async**_
@@ -221,8 +225,8 @@ CRUD.RESTAPI = {
   > Emit after `toEdit` and `AFTER_DETAILS`
 - AFTER_DETAILS_VIEW(crud,rs) _**async**_
   > Emit after `toView` and `AFTER_DETAILS`
-- BEFORE_SUBMIT(crud,cancel,filterForm,...args) _**async**_
-  > Emit before form submit. Cancellable, if be cancelled the `AFTER_SUBMIT` will not emit. Use `filterForm(formObject)` to set form-data to submit
+- BEFORE_SUBMIT(crud,cancel,setForm,...args) _**async**_
+  > Emit before form submit. Cancellable, if be cancelled the `AFTER_SUBMIT` will not emit. Use `setForm(formObject)` to set form-data to submit
 - AFTER_SUBMIT(crud,rs) _**async**_
   > Emit after form submit. Can reload page, send notice here
 - BEFORE_EXPORT(crud,params,orders,cancel) _**async**_
@@ -258,3 +262,6 @@ CRUD.RESTAPI = {
   > Rx 【Install】
 - table.rowKey is a blank value 'Xxx', it may cause an error - toDelete/Edit/View()
   > Rx 【set rowKey a non-empty value】
+
+## Workflow
+![Cruda Workflow](./workflow.jpg)
