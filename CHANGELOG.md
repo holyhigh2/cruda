@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.3.0] - 2023/9/7 
+### Add
+- API - submitAdd & submitEdit
+
 ## [1.2.0] - 2023/7/30 ⚠️BreakChange
 ### Add
 - Hooks - Multi hooks

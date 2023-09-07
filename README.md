@@ -88,7 +88,7 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs) {
   crud.table.data = rs.data.records || []
 }
 CRUD.defaults.pagination.pageSize = 10
-CRUD.defaults.view.queryReset = true
+CRUD.defaults.view.opQuery = true
 CRUD.defaults.table.rowKey = 'id'
 ```
 ### 8. RESTAPI
@@ -184,6 +184,10 @@ CRUD.RESTAPI = {
   > Set `formStatus` to 'Normal'
 - submit(...args) : Promise
   > Pass args to `BEFORE_SUBMIT`
+- submitAdd(...args) : Promise
+  > Same as `submit()` but won't check `formStatus`
+- submitEdit(...args) : Promise
+  > Same as `submit()` but won't check`formStatus`
 - reload() : Promise
   > Reset pagination and call toQuery()
 - getRestURL() : string

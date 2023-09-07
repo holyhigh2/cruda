@@ -584,9 +584,7 @@ class CRUD {
     callHook(CRUD.HOOK.ON_CANCEL, this);
   }
 
-  // 提交表单
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async submit(...args: unknown[]): Promise<unknown> {
+  async #_submit(type:number,...args: unknown[]): Promise<unknown> {
     let rs;
     let proceed = true;
     let submitForm;
@@ -603,15 +601,10 @@ class CRUD {
 
     let error;
     try {
-      if (this.formStatus === 1) {
+      if (type === 1) {
         rs = await this.doAdd(submitForm);
-      } else if (this.formStatus === 2) {
+      } else if (type === 2) {
         rs = await this.doUpdate(submitForm);
-      } else {
-        crudWarn(
-          `formStatus '${this.formStatus}' is not submittable, it should be 1(add)/2(update)`,
-          "- submit()"
-        );
       }
 
       await callHook(CRUD.HOOK.AFTER_SUBMIT, this, rs);
@@ -626,6 +619,29 @@ class CRUD {
 
     return rs;
   }
+
+  // 提交表单
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async submit(...args: unknown[]): Promise<unknown> {
+    if (this.formStatus !== 1 && this.formStatus !== 2) {
+      crudWarn(
+        `formStatus '${this.formStatus}' is not submittable, it should be 1(add)/2(update)`,
+        "- submit()"
+      );
+      return
+    }
+
+    return this.#_submit(this.formStatus,...args);
+  }
+
+  async submitAdd(...args: unknown[]): Promise<unknown> {
+    return this.#_submit(1,...args);
+  }
+
+  async submitEdit(...args: unknown[]): Promise<unknown> {
+    return this.#_submit(2,...args);
+  }
+
   // 刷新页面，适用于查询条件变更后需要重新加载的场景
   reload(): Promise<unknown> {
     this.pagination.currentPage = 1;

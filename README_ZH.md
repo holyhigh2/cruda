@@ -88,7 +88,7 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs) {
   crud.table.data = rs.data.records || []
 }
 CRUD.defaults.pagination.pageSize = 10
-CRUD.defaults.view.queryReset = true
+CRUD.defaults.view.opQuery = true
 CRUD.defaults.table.rowKey = 'id'
 ```
 ### 8. RESTAPI
@@ -185,6 +185,10 @@ CRUD.RESTAPI = {
   > 设置 form 状态为取消。
 - submit(...args) : Promise
   > args参数会传递给 `BEFORE_SUBMIT` 并可自行实现校验逻辑
+- submitAdd(...args) : Promise
+  > 同`submit()`，但不会校验`formStatus`
+- submitEdit(...args) : Promise
+  > 同`submit()`，但不会校验`formStatus`
 - reload() : Promise
   > 重置分页信息并执行一次 toQuery()
 - getRestURL() : string
