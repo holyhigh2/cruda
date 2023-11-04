@@ -158,6 +158,14 @@ CRUD.RESTAPI = {
   > crud 激活参数，通过对象方式构造 crud 时可以注入。可用于自定义组件中进行附加操作，比如附加 CRUD 权限控制
 - error
   > crud 错误信息{name，message，status}。可以用于监控并作出合适的反馈，比如网络超时提示
+- editingId
+  > 当前正在编辑器的表单行id，根据`table.rowKey`属性确定
+- key
+  > 多实例下每个crud实例的标识
+- recoverable✅
+  > 是否开启编辑快照，开启后会在新增/编辑时保存form快照
+- snapshots
+  > 保存快照内容的对象。key是table.row的id
 
 ✅ **_表示支持全局默认值_**
 
@@ -255,6 +263,8 @@ CRUD.RESTAPI = {
 - ON_ERROR(crud,error)
   > 操作发生错误时调用
 - ON_CANCEL(crud)
+- BEFORE_RECOVER(crud,cancel,snapshot) _**async**_
+  > 恢复快照前调用
 
 ## 错误信息
 

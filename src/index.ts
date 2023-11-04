@@ -3,10 +3,10 @@
  * 提供基于RESTapi方式的CRUD操作及数据托管
  * @author holyhigh
  */
-import { map, each, find } from "myfx/collection";
+import { map, each, find, filter } from "myfx/collection";
 import { remove } from "myfx/array";
 import { partial } from "myfx/function";
-import { trim } from "myfx/string";
+import { startsWith, trim } from "myfx/string";
 import { uuid } from "myfx/utils";
 import {
   isArray,
@@ -17,7 +17,7 @@ import {
   isNil,
   isEmpty,
 } from "myfx/is";
-import { merge, get, set } from "myfx/object";
+import { merge, get, set, keys } from "myfx/object";
 
 import { RestUrl, CRUDError, Pagination } from "./types";
 
@@ -42,6 +42,49 @@ const VIEW_PROPS = [
   "opSort",
   "opCopy",
 ];
+
+function isRecoverable(crudInstance: CRUD) {
+  return crudInstance.recoverable || CRUD.defaults.recoverable;
+}
+
+const CRUDA_KEY_SNAPSHOT = "cruda_snapshot_";
+function getSnapshotKey(
+  key: string,
+  formStatus: number,
+  editingId?: string | number
+) {
+  let type = null;
+  if (formStatus == 1) {
+    type = "add";
+  } else if (formStatus == 2) {
+    type = "edit_" + editingId;
+  }
+  return (
+    CRUDA_KEY_SNAPSHOT + location.href + (key ? "_" + key : "") + "_" + type
+  );
+}
+
+export function _setSnapshot(crud: CRUD, v: any) {
+  let key = getSnapshotKey(crud.key, crud.formStatus, crud.editingId);
+  let val = JSON.stringify(v)
+  localStorage.setItem(key, val);
+
+  innerUpdater(crud.snapshots,{[crud.editingId]:val})
+}
+
+function removeSnapshot(
+  key: string,
+  formStatus: number,
+  editingId: string | number,
+  crud: CRUD
+) {
+  const skey = getSnapshotKey(key, formStatus, editingId);
+  //remove cache
+  localStorage.removeItem(skey);
+
+  crud.snapshots[editingId] = ''
+  delete crud.snapshots[editingId]
+}
 
 /**
  * CRUD容器。每个CRUD服务对应一个实例，提供查询、表格、分页等逻辑托管
@@ -75,6 +118,8 @@ class CRUD {
 
     ON_ERROR: "CRUD_ON_ERROR", // 操作发生错误时调用，包括CRUD
     ON_CANCEL: "CRUD_ON_CANCEL", // 表单编辑取消时触发
+
+    BEFORE_RECOVER: "CRUD_BEFORE_RECOVER", //恢复前触发，如果recoverable开启
   };
   // REST APIs
   static RESTAPI = {
@@ -94,8 +139,10 @@ class CRUD {
     view: Record<string, boolean | undefined>;
     pagination: Pagination;
     table: Record<string, string>;
+    recoverable: boolean;
     [k: string]:
       | Function
+      | boolean
       | Record<string, string>
       | Record<string, boolean | undefined>
       | Pagination;
@@ -110,10 +157,11 @@ class CRUD {
     table: {
       rowKey: "",
     },
+    recoverable: false,
   };
 
   params: Record<string, any> = {};
-  private url:string;
+  private url: string;
   private urlVar: Record<string, unknown>;
 
   view: Record<string, boolean | undefined> = {}; //业务组件通过view来控制UI
@@ -129,7 +177,7 @@ class CRUD {
     sort: false, //排序中
     copy: false, //复制中
   };
-  query:Record<string, any> = {}; //查询数据
+  query: Record<string, any> = {}; //查询数据
   table: {
     rowKey: string;
     data: Record<string, unknown>[];
@@ -145,11 +193,11 @@ class CRUD {
     allColumns: [], // 表格所有列，用于动态展示
     orders: [], // 排序列表
   };
-  pagination:{
-    pageSize:number,
-    currentPage:number,
-    total:number,
-    [k:string]:any
+  pagination: {
+    pageSize: number;
+    currentPage: number;
+    total: number;
+    [k: string]: any;
   } = {
     _pageSize: 0,
     set pageSize(v: number) {
@@ -166,16 +214,20 @@ class CRUD {
     total: 0,
   };
   sortation = {}; //排序对象
-  formStatus:number = 0; // 1：新增；2：编辑；3：查看。适用于组合弹窗或细分弹窗
-  form:Record<string, any> = {};
+  formStatus: number = 0; // 1：新增；2：编辑；3：查看。适用于组合弹窗或细分弹窗
+  form: Record<string, any> = {};
   error = {
     name: "",
     message: "",
     status: "",
   };
+  editingId: string | number;
+  key: string; //当启用多实例时的key
+  recoverable: boolean = false; //可恢复
+  snapshots: Record<string, any> = {};
 
-  constructor(restURL: string | RestUrl) {
-    let url
+  constructor(restURL: string | RestUrl,key?:string) {
+    let url;
     if (isObject(restURL)) {
       const p = restURL;
       url = p.url;
@@ -188,20 +240,20 @@ class CRUD {
     }
 
     Object.defineProperties(this, {
-      url:{
+      url: {
         value: url,
-        configurable:false,
-        writable: false
+        configurable: false,
+        writable: false,
       },
-      urlVar:{
+      urlVar: {
         value: {},
-        configurable:false,
-        writable: true
+        configurable: false,
+        writable: true,
       },
-      error:{
-        configurable:false,
-        writable: false
-      }
+      error: {
+        configurable: false,
+        writable: false,
+      },
     });
 
     const viewProps: { [key: string]: unknown } = {};
@@ -213,6 +265,21 @@ class CRUD {
       this.view["_" + prop] = undefined;
     });
     Object.defineProperties(this.view, viewProps as PropertyDescriptorMap);
+
+    this.key = key||''
+
+    //load snapshots
+    const preffix = CRUDA_KEY_SNAPSHOT + location.href + (key ? "_" + key : "") + '_'
+    const ks = filter(keys(localStorage),k=>startsWith(k,preffix))
+    each(ks,k=>{
+      let kk = k.replace(preffix,'')
+      if(startsWith(kk,'add')){
+        this.snapshots[''] = localStorage.getItem(k)
+      }else if(startsWith(kk,'edit_')){
+        this.snapshots[kk.replace('edit_','')] = localStorage.getItem(k)
+      }      
+    })
+    
   }
 
   setURLParams(v: Record<string, unknown>): void {
@@ -255,8 +322,8 @@ class CRUD {
     return this.url.replace(/:([^:]+?)(\/|$)/gm, (a, b, c) => params[b] + c);
   }
 
-  getContext(): any{
-    return CONTEXT_MAP.get(this)
+  getContext(): any {
+    return CONTEXT_MAP.get(this);
   }
 
   async toQuery(query?: Record<string, any>): Promise<unknown> {
@@ -370,7 +437,7 @@ class CRUD {
 
     return rs;
   }
-  async toImport(file: File | File[],fieldName:string): Promise<unknown> {
+  async toImport(file: File | File[], fieldName: string): Promise<unknown> {
     const params = {};
 
     let proceed = true;
@@ -388,7 +455,7 @@ class CRUD {
     let rs;
     let error;
     try {
-      rs = await this.doImport(file, params,fieldName);
+      rs = await this.doImport(file, params, fieldName);
 
       await callHook(CRUD.HOOK.AFTER_IMPORT, this, rs);
       this.loading.import = false;
@@ -433,9 +500,29 @@ class CRUD {
   }
   async toAdd(...args: unknown[]): Promise<void> {
     let proceed = true;
-    await callHook(CRUD.HOOK.BEFORE_ADD, this,() => (proceed = false), ...args);
+    await callHook(
+      CRUD.HOOK.BEFORE_ADD,
+      this,
+      () => (proceed = false),
+      ...args
+    );
     if (!proceed) return;
-    
+
+    if (isRecoverable(this)) {
+      let key = getSnapshotKey(this.key, 1);
+      let data = localStorage.getItem(key);
+      let json = data ? JSON.parse(data) : undefined;
+      await callHook(
+        CRUD.HOOK.BEFORE_RECOVER,
+        this,
+        () => (proceed = false),
+        json
+      );
+      if (proceed && json) {
+        innerUpdater(this.form, json);
+      }
+    }
+
     this.formStatus = 1;
   }
   async toEdit(row: Record<string, unknown>): Promise<unknown> {
@@ -449,6 +536,8 @@ class CRUD {
         "- toEdit()"
       );
     }
+
+    this.editingId = id;
 
     const params = {
       [rowKey]: id,
@@ -465,6 +554,21 @@ class CRUD {
       () => (queryDetails = false)
     );
     if (!proceed) return;
+
+    if (isRecoverable(this)) {
+      let key = getSnapshotKey(this.key, 2, id);
+      let data = localStorage.getItem(key);
+      let json = data ? JSON.parse(data) : undefined;
+      await callHook(
+        CRUD.HOOK.BEFORE_RECOVER,
+        this,
+        () => (proceed = false),
+        json
+      );
+      if (proceed && json) {
+        innerUpdater(this.form, json);
+      }
+    }
 
     this.formStatus = 2;
     this.loading.form = true;
@@ -580,11 +684,16 @@ class CRUD {
 
   // 取消表单
   cancel(): void {
+    let formStatus = this.formStatus;
     this.formStatus = 0;
     callHook(CRUD.HOOK.ON_CANCEL, this);
+
+    if (isRecoverable(this)) {
+      removeSnapshot(this.key, formStatus, this.editingId,this)
+    }
   }
 
-  async #_submit(type:number,...args: unknown[]): Promise<unknown> {
+  async #_submit(type: number, ...args: unknown[]): Promise<unknown> {
     let rs;
     let proceed = true;
     let submitForm;
@@ -592,7 +701,7 @@ class CRUD {
       CRUD.HOOK.BEFORE_SUBMIT,
       this,
       () => (proceed = false),
-      (form:Record<string,any>) => (submitForm = form),
+      (form: Record<string, any>) => (submitForm = form),
       ...args
     );
     if (!proceed) return;
@@ -605,6 +714,10 @@ class CRUD {
         rs = await this.doAdd(submitForm);
       } else if (type === 2) {
         rs = await this.doUpdate(submitForm);
+      }
+
+      if (isRecoverable(this)) {
+        removeSnapshot(this.key, type, this.editingId,this);
       }
 
       await callHook(CRUD.HOOK.AFTER_SUBMIT, this, rs);
@@ -628,18 +741,18 @@ class CRUD {
         `formStatus '${this.formStatus}' is not submittable, it should be 1(add)/2(update)`,
         "- submit()"
       );
-      return
+      return;
     }
 
-    return this.#_submit(this.formStatus,...args);
+    return this.#_submit(this.formStatus, ...args);
   }
 
   async submitAdd(...args: unknown[]): Promise<unknown> {
-    return this.#_submit(1,...args);
+    return this.#_submit(1, ...args);
   }
 
   async submitEdit(...args: unknown[]): Promise<unknown> {
-    return this.#_submit(2,...args);
+    return this.#_submit(2, ...args);
   }
 
   // 刷新页面，适用于查询条件变更后需要重新加载的场景
@@ -667,7 +780,7 @@ class CRUD {
   }
 
   // 执行新增操作
-  private doAdd(form:Record<string, unknown>|undefined): Promise<unknown> {
+  private doAdd(form: Record<string, unknown> | undefined): Promise<unknown> {
     return CRUD.request({
       url: this.getRestURL() + CRUD.RESTAPI.ADD.url,
       method: CRUD.RESTAPI.ADD.method,
@@ -676,7 +789,9 @@ class CRUD {
   }
 
   // 执行编辑操作
-  private doUpdate(form:Record<string, unknown>|undefined): Promise<unknown> {
+  private doUpdate(
+    form: Record<string, unknown> | undefined
+  ): Promise<unknown> {
     return CRUD.request({
       url: this.getRestURL() + CRUD.RESTAPI.UPDATE.url,
       method: CRUD.RESTAPI.UPDATE.method,
@@ -707,7 +822,7 @@ class CRUD {
   private doImport(
     file: File | File[],
     params: Record<string, unknown>,
-    fieldName:string
+    fieldName: string
   ): Promise<unknown> {
     const data = new FormData();
 
@@ -716,9 +831,9 @@ class CRUD {
     });
 
     if (isArray(file)) {
-      each<File>(file, (f) => data.append(fieldName||"files", f));
+      each<File>(file, (f) => data.append(fieldName || "files", f));
     } else {
-      data.append(fieldName||"file", file);
+      data.append(fieldName || "file", file);
     }
 
     return CRUD.request({
@@ -758,14 +873,17 @@ async function callHook(hookName: string, crud: CRUD, ...args: unknown[]) {
   //1. default
   if (isFunction(defaultHook)) await defaultHook(crud, ...args);
   //2. instance
-  let instanceHooks = get<Array<any>>(HOOK_MAP[get(crud, '__crud_hid_') as string],hookName) 
-  if(!isEmpty(instanceHooks)){
-    for(let i=0;i<instanceHooks.length;i++){
-      let [hook,context] = instanceHooks[i]
-      if (isFunction(hook)) await hook.call(context,crud, ...args);
+  let instanceHooks = get<Array<any>>(
+    HOOK_MAP[get(crud, "__crud_hid_") as string],
+    hookName
+  );
+  if (!isEmpty(instanceHooks)) {
+    for (let i = 0; i < instanceHooks.length; i++) {
+      let [hook, context] = instanceHooks[i];
+      if (isFunction(hook)) await hook.call(context, crud, ...args);
     }
   }
-  
+
   if (hookName === CRUD.HOOK.ON_ERROR) {
     const e = args[0] as CRUDError;
 
@@ -789,77 +907,98 @@ export function crudError(...args: unknown[]): void {
   console.error("[CRUD] - ", ...args);
 }
 
-const HOOK_MAP: { [key: string]: Record<string, Array<any>> } = {}
-const CONTEXT_MAP = new WeakMap()
+const HOOK_MAP: { [key: string]: Record<string, Array<any>> } = {};
+const CONTEXT_MAP = new WeakMap();
 
 //用于适配器调用。返回一个/多个crud实例
-export function _newCrud(restURL: string | RestUrl, context: Record<string, any>):CRUD{
-  const nid = uuid()
-  HOOK_MAP[nid] = {}
-  const crud = new CRUD(restURL)
-  Object.defineProperty(crud,'__crud_hid_',{
-    value:nid,
-    enumerable:false,
-    configurable:false
-  })
+export function _newCrud(
+  restURL: string | RestUrl,
+  context: Record<string, any>
+): CRUD {
+  const nid = uuid();
+  HOOK_MAP[nid] = {};
+  const crud = new CRUD(restURL);
+  Object.defineProperty(crud, "__crud_hid_", {
+    value: nid,
+    enumerable: false,
+    configurable: false,
+  });
 
-  CONTEXT_MAP.set(crud,context)
+  CONTEXT_MAP.set(crud, context);
 
   Object.defineProperties(context, {
-    __crud_:{
+    __crud_: {
       value: crud,
       enumerable: false,
-      writable:true
+      writable: true,
     },
-    __crud_nid_:{
+    __crud_nid_: {
       value: nid,
       enumerable: false,
-    }
-  })
-  return crud
+    },
+  });
+  return crud;
 }
-export function _newCruds(restURL: Record<string, string | RestUrl>, context: Record<string, any>):Record<string, CRUD>{
-  const cruds:Record<string, CRUD> = {}
-  
-  const nid = uuid()
-  HOOK_MAP[nid] = {}
+export function _newCruds(
+  restURL: Record<string, string | RestUrl>,
+  context: Record<string, any>
+): Record<string, CRUD> {
+  const cruds: Record<string, CRUD> = {};
+
+  const nid = uuid();
+  HOOK_MAP[nid] = {};
 
   each(restURL, (v: RestUrl | string, k: string) => {
-    const crud = new CRUD(v)
-    Object.defineProperty(crud,'__crud_hid_',{
-      value:nid,
-      enumerable:false,
-      configurable:false
-    })
-    cruds[k] = crud
-    CONTEXT_MAP.set(crud, context)
-  })
-
-  Object.defineProperties(context, {
-    __cruds_:{
-      value: cruds,
-      enumerable: false,
-      writable:true
-    },
-    __crud_nid_:{
+    const crud = new CRUD(v,k);
+    Object.defineProperty(crud, "__crud_hid_", {
       value: nid,
       enumerable: false,
-    }
-  })
-  return cruds
+      configurable: false,
+    });
+    cruds[k] = crud;
+    CONTEXT_MAP.set(crud, context);
+  });
+
+  Object.defineProperties(context, {
+    __cruds_: {
+      value: cruds,
+      enumerable: false,
+      writable: true,
+    },
+    __crud_nid_: {
+      value: nid,
+      enumerable: false,
+    },
+  });
+  return cruds;
 }
 
-export function _onHook(nid:string, hookName: string, hook: (crud: CRUD, ...args: any[]) => void,context: Record<string, any>):()=>void{
-  const hid = uuid()
-  let hooks = get<Array<any>>(HOOK_MAP, [nid,hookName]) 
-  if (!hooks){
-    hooks = []
-    set(HOOK_MAP, [nid, hookName], hooks)
+export function _onHook(
+  nid: string,
+  hookName: string,
+  hook: (crud: CRUD, ...args: any[]) => void,
+  context: Record<string, any>
+): () => void {
+  const hid = uuid();
+  let hooks = get<Array<any>>(HOOK_MAP, [nid, hookName]);
+  if (!hooks) {
+    hooks = [];
+    set(HOOK_MAP, [nid, hookName], hooks);
   }
-  hooks.push([hook,context,hid])
-  return ()=>{
-    remove(HOOK_MAP[nid][hookName],item=>item[3] === hid)    
-  }
+  hooks.push([hook, context, hid]);
+  return () => {
+    remove(HOOK_MAP[nid][hookName], (item) => item[3] === hid);
+  };
+}
+
+let innerUpdater: (
+  form: Record<string, any>,
+  props: Record<string, any>
+) => void;
+export function _setUpdater(
+  updater: (form: Record<string, any>, props: Record<string, any>) => void
+) {
+  innerUpdater = updater;
 }
 
 export { RestUrl } from "./types";

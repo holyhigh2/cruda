@@ -157,6 +157,14 @@ CRUD.RESTAPI = {
   > crud active params
 - error
   > crud error msg{name，message，status}
+- editingId
+  > editing id of the `table.row`
+- key
+  > crud key in multi-instance
+- recoverable✅
+  > enable/disable editing snapshot
+- snapshots
+  > snapshot map. The key is `table.row[rowKey]`
 
 ✅ **_Indicates that global defaults are supported_**
 
@@ -253,6 +261,8 @@ CRUD.RESTAPI = {
   > Emit on error
 - ON_CANCEL(crud)
   > Emit after cancel() be called
+- BEFORE_RECOVER(crud,cancel,snapshot) _**async**_
+  > Emit before recover the snapshot
 
 
 ## Errors

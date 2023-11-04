@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.0] - 2023/11/4 
+### Add
+- VM - editingId , key , recoverable , snapshots 
+- Hooks - BEFORE_RECOVER
+
 ## [1.3.0] - 2023/9/7 
 ### Add
 - API - submitAdd & submitEdit
