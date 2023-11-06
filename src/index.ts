@@ -16,6 +16,7 @@ import {
   isNull,
   isNil,
   isEmpty,
+  isDefined,
 } from "myfx/is";
 import { merge, get, set, keys } from "myfx/object";
 
@@ -223,7 +224,17 @@ class CRUD {
   };
   editingId: string | number;
   key: string; //当启用多实例时的key
-  recoverable: boolean = false; //可恢复
+  private _recoverable: boolean|undefined = undefined; //可恢复
+  set recoverable(v: boolean) {
+    this._recoverable = v;
+  }
+  // 1. 如果CRUD实例设置了pageSize，以实例为准
+  // 2. 如果实例值不合法取defaults
+  get recoverable(): boolean {
+    const ps = this._recoverable;
+    if (!isUndefined(ps)) return ps;
+    return CRUD.defaults.recoverable || false;
+  }
   snapshots: Record<string, any> = {};
 
   constructor(restURL: string | RestUrl,key?:string) {
@@ -693,7 +704,7 @@ class CRUD {
     }
   }
 
-  async #_submit(type: number, ...args: unknown[]): Promise<unknown> {
+  private async _submit(type: number, ...args: unknown[]): Promise<unknown> {
     let rs;
     let proceed = true;
     let submitForm;
@@ -744,15 +755,15 @@ class CRUD {
       return;
     }
 
-    return this.#_submit(this.formStatus, ...args);
+    return this._submit(this.formStatus, ...args);
   }
 
   async submitAdd(...args: unknown[]): Promise<unknown> {
-    return this.#_submit(1, ...args);
+    return this._submit(1, ...args);
   }
 
   async submitEdit(...args: unknown[]): Promise<unknown> {
-    return this.#_submit(2, ...args);
+    return this._submit(2, ...args);
   }
 
   // 刷新页面，适用于查询条件变更后需要重新加载的场景
