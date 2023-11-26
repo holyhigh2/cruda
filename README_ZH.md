@@ -105,6 +105,22 @@ CRUD.RESTAPI = {
   COPY: { url: "/copy", method: "POST" },
 }
 ```
+### 9. xApi (v1.5+)
+`CRUD.xApi(apiName,apiUrl,config)` 可用于扩展 CRUD RESTAPI 以对业务接口进行统一管理。下面的例子演示了如何扩展一个CRUD API
+```js
+//1. 注册新接口（通常在系统初始化阶段调用）。注册API后，会
+/**
+ * a. 在crud实例中注册 toClone 方法
+ * b. 在CRUD.HOOK中注册 BEFORE_CLONE、AFTER_CLONE 钩子
+ */
+CRUD.xApi('clone','/clone',{method:'POST'})
+//2. 监听注册钩子
+onHook(this,CRUD.HOOK.AFTER_CLONE,(crud,rs)=>{
+  console.log('xApi-->',rs.data)
+})
+//3. 调用 toClone 方法
+this.$crud.toClone({x:1,y:2});
+```
 
 ## Cruda API
 ### VM
@@ -165,7 +181,7 @@ CRUD.RESTAPI = {
 - recoverable✅
   > 是否开启编辑快照，开启后会在新增/编辑时保存form快照
 - snapshots
-  > 保存快照内容的对象。key是table.row的id
+  > 保存快照内容的对象，key是table.row的id。可用于在视图中显示快照状态，详见examples
 
 ✅ **_表示支持全局默认值_**
 

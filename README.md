@@ -105,6 +105,22 @@ CRUD.RESTAPI = {
   COPY: { url: "/copy", method: "POST" },
 }
 ```
+### 9. xApi (v1.5+)
+`CRUD.xApi(apiName, apiUrl, config)` is used to extends custom CRUD RESTAPI. Below is an example
+```js
+//1. Extends an API. After that it will
+/**
+ * a. Attach a method 'toClone' to the CRUD instance
+ * b. Add 'BEFORE_CLONE' and 'AFTER_CLONE' to CRUD.HOOK
+ */
+CRUD.xApi('clone','/clone',{method:'POST'})
+//2. Add listener
+onHook(this,CRUD.HOOK.AFTER_CLONE,(crud,rs)=>{
+  console.log('xApi-->',rs.data)
+})
+//3. Call toClone
+this.$crud.toClone({x:1,y:2});
+```
 
 ## Cruda API
 ### VM

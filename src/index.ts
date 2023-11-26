@@ -6,7 +6,7 @@
 import { map, each, find, filter } from "myfx/collection";
 import { remove } from "myfx/array";
 import { partial } from "myfx/function";
-import { startsWith, trim } from "myfx/string";
+import { startsWith, trim, upperCase, upperFirst } from "myfx/string";
 import { uuid } from "myfx/utils";
 import {
   isArray,
@@ -160,6 +160,61 @@ class CRUD {
     },
     recoverable: false,
   };
+
+  //注册自定义API
+  static xApi(name:string, url:string, config?:{
+    method?:string,
+    loadable:false
+  }) {
+    let loadable = get<boolean>(config,'loadable',false)
+    let uName = upperCase(name)
+    let method = get(config,'method','GET')
+    set(CRUD.RESTAPI,uName,{ url: url, method })
+    each(['BEFORE','AFTER'],v=>{
+      set(CRUD.HOOK,v+'_'+uName,`CRUD_${v}_`+uName)
+    })
+    if(loadable){
+      set(CRUD.prototype.loading,name,false)
+    }
+    set(CRUD.prototype,`to${upperFirst(name)}`,async function(paramObj:Record<string,any>){
+      let proceed = true;
+      await callHook(
+        get(CRUD.HOOK,'BEFORE_'+uName),
+        this,
+        paramObj,
+        () => (proceed = false)
+      );
+      if (!proceed) return;
+      if(loadable){
+        set(CRUD.prototype.loading,name,true)
+      }
+  
+      let rs;
+      let error;
+      try {
+        rs = await CRUD.request({
+          url: this.getRestURL() + url,
+          method: method,
+          data: paramObj,
+        });
+
+        await callHook(get(CRUD.HOOK,'AFTER_'+uName), this, rs);
+        if(loadable){
+          set(CRUD.prototype.loading,name,false)
+        }
+      } catch (e) {
+        if(loadable){
+          set(CRUD.prototype.loading,name,false)
+        }
+        callHook(CRUD.HOOK.ON_ERROR, this, e);
+        error = e;
+      }
+  
+      if (error) throw error;
+  
+      return rs;
+    })
+  }
 
   params: Record<string, any> = {};
   private url: string;
