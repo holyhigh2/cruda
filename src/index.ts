@@ -318,7 +318,7 @@ class CRUD {
       },
       error: {
         configurable: false,
-        writable: false,
+        writable: true,
       },
     });
 
