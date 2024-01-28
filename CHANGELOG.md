@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.0] - 2024/1/28 
+### Add
+- VM - invalidBreak
+- Hooks - ON_VALIDATE
+- APIs - submitForm
+
 ## [1.4.0] - 2023/11/4 
 ### Add
 - VM - editingId , key , recoverable , snapshots 
@@ -7,12 +13,12 @@
 
 ## [1.3.0] - 2023/9/7 
 ### Add
-- API - submitAdd & submitEdit
+- APIs - submitAdd & submitEdit
 
 ## [1.2.0] - 2023/7/30 ⚠️BreakChange
 ### Add
 - Hooks - Multi hooks
-- API - onHook for any adapter
+- APIs - onHook for any adapter
 ### Optimize
 - doImport - New param 'fieldName'
 

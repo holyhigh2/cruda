@@ -277,6 +277,8 @@ this.$crud.toClone({x:1,y:2});
   > Emit on error
 - ON_CANCEL(crud)
   > Emit after cancel() be called
+- ON_VALIDATE(crud,isValid,invalidFields)
+  > Emit after submitForm() be called
 - BEFORE_RECOVER(crud,cancel,snapshot) _**async**_
   > Emit before recover the snapshot
 

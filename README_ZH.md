@@ -279,6 +279,9 @@ this.$crud.toClone({x:1,y:2});
 - ON_ERROR(crud,error)
   > 操作发生错误时调用
 - ON_CANCEL(crud)
+  > 操作发生错误时调用
+- ON_VALIDATE(crud,isValid,invalidFields)
+  > 调用submitForm时触发
 - BEFORE_RECOVER(crud,cancel,snapshot) _**async**_
   > 恢复快照前调用
 

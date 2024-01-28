@@ -16,7 +16,7 @@ import {
   isNull,
   isNil,
   isEmpty,
-  isDefined,
+  isArrayLike,
 } from "myfx/is";
 import { merge, get, set, keys } from "myfx/object";
 
@@ -67,10 +67,17 @@ function getSnapshotKey(
 
 export function _setSnapshot(crud: CRUD, v: any) {
   let key = getSnapshotKey(crud.key, crud.formStatus, crud.editingId);
-  let val = JSON.stringify(v)
+  let val = JSON.stringify(v);
   localStorage.setItem(key, val);
 
-  innerUpdater(crud.snapshots,{[crud.editingId]:val})
+  innerUpdater(crud.snapshots, { [crud.editingId]: val });
+}
+
+/**
+ * 校验器接口，各适配器实现
+ */
+export interface FormValidator {
+  validate: (...args: any[]) => Promise<any>;
 }
 
 function removeSnapshot(
@@ -83,8 +90,8 @@ function removeSnapshot(
   //remove cache
   localStorage.removeItem(skey);
 
-  crud.snapshots[editingId] = ''
-  delete crud.snapshots[editingId]
+  crud.snapshots[editingId] = "";
+  delete crud.snapshots[editingId];
 }
 
 /**
@@ -119,6 +126,7 @@ class CRUD {
 
     ON_ERROR: "CRUD_ON_ERROR", // 操作发生错误时调用，包括CRUD
     ON_CANCEL: "CRUD_ON_CANCEL", // 表单编辑取消时触发
+    ON_VALIDATE: "CRUD_ON_VALIDATE", // 表单校验时触发
 
     BEFORE_RECOVER: "CRUD_BEFORE_RECOVER", //恢复前触发，如果recoverable开启
   };
@@ -141,6 +149,7 @@ class CRUD {
     pagination: Pagination;
     table: Record<string, string>;
     recoverable: boolean;
+    invalidBreak: boolean;
     [k: string]:
       | Function
       | boolean
@@ -159,61 +168,70 @@ class CRUD {
       rowKey: "",
     },
     recoverable: false,
+    invalidBreak:true
   };
 
   //注册自定义API
-  static xApi(name:string, url:string, config?:{
-    method?:string,
-    loadable:false
-  }) {
-    let loadable = get<boolean>(config,'loadable',false)
-    let uName = upperCase(name)
-    let method = get(config,'method','GET')
-    set(CRUD.RESTAPI,uName,{ url: url, method })
-    each(['BEFORE','AFTER'],v=>{
-      set(CRUD.HOOK,v+'_'+uName,`CRUD_${v}_`+uName)
-    })
-    if(loadable){
-      set(CRUD.prototype.loading,name,false)
+  static xApi(
+    name: string,
+    url: string,
+    config?: {
+      method?: string;
+      loadable: false;
     }
-    set(CRUD.prototype,`to${upperFirst(name)}`,async function(paramObj:Record<string,any>){
-      let proceed = true;
-      await callHook(
-        get(CRUD.HOOK,'BEFORE_'+uName),
-        this,
-        paramObj,
-        () => (proceed = false)
-      );
-      if (!proceed) return;
-      if(loadable){
-        set(CRUD.prototype.loading,name,true)
-      }
-  
-      let rs;
-      let error;
-      try {
-        rs = await CRUD.request({
-          url: this.getRestURL() + url,
-          method: method,
-          data: paramObj,
-        });
+  ) {
+    let loadable = get<boolean>(config, "loadable", false);
+    let uName = upperCase(name);
+    let method = get(config, "method", "GET");
+    set(CRUD.RESTAPI, uName, { url: url, method });
+    each(["BEFORE", "AFTER"], (v) => {
+      set(CRUD.HOOK, v + "_" + uName, `CRUD_${v}_` + uName);
+    });
+    if (loadable) {
+      set(CRUD.prototype.loading, name, false);
+    }
+    set(
+      CRUD.prototype,
+      `to${upperFirst(name)}`,
+      async function (paramObj: Record<string, any>) {
+        let proceed = true;
+        await callHook(
+          get(CRUD.HOOK, "BEFORE_" + uName),
+          this,
+          paramObj,
+          () => (proceed = false)
+        );
+        if (!proceed) return;
+        if (loadable) {
+          set(CRUD.prototype.loading, name, true);
+        }
 
-        await callHook(get(CRUD.HOOK,'AFTER_'+uName), this, rs);
-        if(loadable){
-          set(CRUD.prototype.loading,name,false)
+        let rs;
+        let error;
+        try {
+          rs = await CRUD.request({
+            url: this.getRestURL() + url,
+            method: method,
+            data: paramObj,
+          });
+
+          await callHook(get(CRUD.HOOK, "AFTER_" + uName), this, rs);
+          if (loadable) {
+            set(CRUD.prototype.loading, name, false);
+          }
+        } catch (e) {
+          if (loadable) {
+            set(CRUD.prototype.loading, name, false);
+          }
+          callHook(CRUD.HOOK.ON_ERROR, this, e);
+          error = e;
         }
-      } catch (e) {
-        if(loadable){
-          set(CRUD.prototype.loading,name,false)
-        }
-        callHook(CRUD.HOOK.ON_ERROR, this, e);
-        error = e;
+
+        if (error) throw error;
+
+        return rs;
       }
-  
-      if (error) throw error;
-  
-      return rs;
-    })
+    );
   }
 
   params: Record<string, any> = {};
@@ -278,8 +296,22 @@ class CRUD {
     status: "",
   };
   editingId: string | number;
-  key: string; //当启用多实例时的key
-  private _recoverable: boolean|undefined = undefined; //可恢复
+  /**
+   * 当启用多实例时的key
+   */
+  key: string; 
+  //form检测到首个无效字段时中断校验
+  private _invalidBreak: boolean | undefined = undefined; 
+  set invalidBreak(v: boolean) {
+    this._invalidBreak = v;
+  }
+  get invalidBreak(): boolean {
+    const ps = this._invalidBreak;
+    if (!isUndefined(ps)) return ps;
+    return CRUD.defaults.invalidBreak || false;
+  }
+  //可恢复
+  private _recoverable: boolean | undefined = undefined; 
   set recoverable(v: boolean) {
     this._recoverable = v;
   }
@@ -292,7 +324,7 @@ class CRUD {
   }
   snapshots: Record<string, any> = {};
 
-  constructor(restURL: string | RestUrl,key?:string) {
+  constructor(restURL: string | RestUrl, key?: string) {
     let url;
     if (isObject(restURL)) {
       const p = restURL;
@@ -332,20 +364,20 @@ class CRUD {
     });
     Object.defineProperties(this.view, viewProps as PropertyDescriptorMap);
 
-    this.key = key||''
+    this.key = key || "";
 
     //load snapshots
-    const preffix = CRUDA_KEY_SNAPSHOT + location.href + (key ? "_" + key : "") + '_'
-    const ks = filter(keys(localStorage),k=>startsWith(k,preffix))
-    each(ks,k=>{
-      let kk = k.replace(preffix,'')
-      if(startsWith(kk,'add')){
-        this.snapshots[''] = localStorage.getItem(k)
-      }else if(startsWith(kk,'edit_')){
-        this.snapshots[kk.replace('edit_','')] = localStorage.getItem(k)
-      }      
-    })
-    
+    const preffix =
+      CRUDA_KEY_SNAPSHOT + location.href + (key ? "_" + key : "") + "_";
+    const ks = filter(keys(localStorage), (k) => startsWith(k, preffix));
+    each(ks, (k) => {
+      let kk = k.replace(preffix, "");
+      if (startsWith(kk, "add")) {
+        this.snapshots[""] = localStorage.getItem(k);
+      } else if (startsWith(kk, "edit_")) {
+        this.snapshots[kk.replace("edit_", "")] = localStorage.getItem(k);
+      }
+    });
   }
 
   setURLParams(v: Record<string, unknown>): void {
@@ -755,7 +787,7 @@ class CRUD {
     callHook(CRUD.HOOK.ON_CANCEL, this);
 
     if (isRecoverable(this)) {
-      removeSnapshot(this.key, formStatus, this.editingId,this)
+      removeSnapshot(this.key, formStatus, this.editingId, this);
     }
   }
 
@@ -783,7 +815,7 @@ class CRUD {
       }
 
       if (isRecoverable(this)) {
-        removeSnapshot(this.key, type, this.editingId,this);
+        removeSnapshot(this.key, type, this.editingId, this);
       }
 
       await callHook(CRUD.HOOK.AFTER_SUBMIT, this, rs);
@@ -811,6 +843,22 @@ class CRUD {
     }
 
     return this._submit(this.formStatus, ...args);
+  }
+
+  //default implementation
+  async submitForm(
+    form:
+      | FormValidator
+      | FormValidator[]
+      | (() => Promise<FormValidator | FormValidator[]>),
+    ...args: unknown[]
+  ): Promise<unknown> {
+    crudWarn(
+      `This warning meas you might forgot to import a cruda adapter`,
+      "- submitForm()"
+    );
+    
+    return this.submit(...args);
   }
 
   async submitAdd(...args: unknown[]): Promise<unknown> {
@@ -934,7 +982,7 @@ class CRUD {
  * @param {*} hookName 钩子名称
  * @param {*} crud crud实例
  */
-async function callHook(hookName: string, crud: CRUD, ...args: unknown[]) {
+export async function callHook(hookName: string, crud: CRUD, ...args: unknown[]) {
   const defaultHook = CRUD.defaults[hookName];
   //1. default
   if (isFunction(defaultHook)) await defaultHook(crud, ...args);
@@ -1015,7 +1063,7 @@ export function _newCruds(
   HOOK_MAP[nid] = {};
 
   each(restURL, (v: RestUrl | string, k: string) => {
-    const crud = new CRUD(v,k);
+    const crud = new CRUD(v, k);
     Object.defineProperty(crud, "__crud_hid_", {
       value: nid,
       enumerable: false,
