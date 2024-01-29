@@ -16,7 +16,6 @@ import {
   isNull,
   isNil,
   isEmpty,
-  isArrayLike,
 } from "myfx/is";
 import { merge, get, set, keys } from "myfx/object";
 
@@ -299,8 +298,7 @@ class CRUD {
   /**
    * 当启用多实例时的key
    */
-  key: string; 
-  //form检测到首个无效字段时中断校验
+  key: string;
   private _invalidBreak: boolean | undefined = undefined; 
   set invalidBreak(v: boolean) {
     this._invalidBreak = v;
@@ -426,7 +424,7 @@ class CRUD {
 
   async toQuery(query?: Record<string, any>): Promise<unknown> {
     const params = {
-      ...merge(this.query, query),
+      ...merge(this.query,this.params.query, query),
       ...this.pagination,
     };
 
@@ -741,7 +739,6 @@ class CRUD {
     if (error) throw error;
     return rs;
   }
-
   async toCopy(
     rows: Record<string, unknown> | Record<string, unknown>[]
   ): Promise<unknown> {
@@ -779,7 +776,6 @@ class CRUD {
     if (error) throw error;
     return rs;
   }
-
   // 取消表单
   cancel(): void {
     let formStatus = this.formStatus;
@@ -870,9 +866,9 @@ class CRUD {
   }
 
   // 刷新页面，适用于查询条件变更后需要重新加载的场景
-  reload(): Promise<unknown> {
+  reload(params?: Record<string, unknown>): Promise<unknown> {
     this.pagination.currentPage = 1;
-    return this.toQuery();
+    return this.toQuery(params);
   }
   // 查询row详情
   getDetails(id: string, params: Record<string, unknown>): Promise<unknown> {

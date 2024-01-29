@@ -181,6 +181,8 @@ this.$crud.toClone({x:1,y:2});
   > enable/disable editing snapshot
 - snapshots
   > snapshot map. The key is `table.row[rowKey]`
+- invalidBreak✅
+  > will break the validation after first catch
 
 ✅ **_Indicates that global defaults are supported_**
 

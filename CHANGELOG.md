@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.7.0] - 2024/1/29 
+### Add
+- RestUrl - query?
+- reload(params?: Record<string, unknown>) 
+
 ## [1.6.0] - 2024/1/28 
 ### Add
 - VM - invalidBreak

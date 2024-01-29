@@ -182,6 +182,8 @@ this.$crud.toClone({x:1,y:2});
   > 是否开启编辑快照，开启后会在新增/编辑时保存form快照
 - snapshots
   > 保存快照内容的对象，key是table.row的id。可用于在视图中显示快照状态，详见examples
+- invalidBreak✅
+  > 表单校验检测到首个无效信息时中断校验
 
 ✅ **_表示支持全局默认值_**
 
