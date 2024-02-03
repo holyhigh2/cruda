@@ -3,8 +3,8 @@
  * 提供基于RESTapi方式的CRUD操作及数据托管
  * @author holyhigh
  */
-import { map, each, find, filter } from "myfx/collection";
-import { remove } from "myfx/array";
+import { map, each, find, filter, includes } from "myfx/collection";
+import { append, insert, remove } from "myfx/array";
 import { partial } from "myfx/function";
 import { startsWith, trim, upperCase, upperFirst } from "myfx/string";
 import { uuid } from "myfx/utils";
@@ -17,9 +17,10 @@ import {
   isNil,
   isEmpty,
 } from "myfx/is";
-import { merge, get, set, keys } from "myfx/object";
+import { merge, get, set, keys, assign } from "myfx/object";
 
-import { RestUrl, CRUDError, Pagination } from "./types";
+import { RestUrl, CRUDError, Pagination, AutoResponse, AutoResponseGetter } from "./types";
+import { findTreeNode, findTreeNodes } from "myfx";
 
 function viewSetter(v: boolean, prop: string, bind: CRUD["view"]) {
   bind["_" + prop] = v;
@@ -107,7 +108,9 @@ class CRUD {
     BEFORE_DELETE: "CRUD_BEFORE_DELETE", // 删除前调用
     AFTER_DELETE: "CRUD_AFTER_DELETE", // 删除后调用
     BEFORE_ADD: "CRUD_BEFORE_ADD", // 新增前调用，可以用来清空表单或产生uuid等
+    AFTER_ADD: "CRUD_AFTER_ADD", //提交新增后触发
     BEFORE_EDIT: "CRUD_BEFORE_EDIT", // 编辑前调用，可以用来锁定某些字段等
+    AFTER_UPDATE: "CRUD_AFTER_UPDATE", //提交更新后触发
     BEFORE_VIEW: "CRUD_BEFORE_VIEW", // 查看前调用
     AFTER_DETAILS_VIEW: "CRUD_AFTER_DETAILS_VIEW", //查询时开启查询详情后触发
     AFTER_DETAILS_EDIT: "CRUD_AFTER_DETAILS_EDIT", //编辑时开启查询详情后触发
@@ -149,12 +152,8 @@ class CRUD {
     table: Record<string, string>;
     recoverable: boolean;
     invalidBreak: boolean;
-    [k: string]:
-      | Function
-      | boolean
-      | Record<string, string>
-      | Record<string, boolean | undefined>
-      | Pagination;
+    autoResponse: AutoResponse;
+    [k: string]: Function | boolean | Record<string, any> | Pagination;
   } = {
     query: {},
     view: {},
@@ -167,7 +166,12 @@ class CRUD {
       rowKey: "",
     },
     recoverable: false,
-    invalidBreak:true
+    invalidBreak: true,
+    autoResponse: {
+      position: "head",
+      validator: () => false,
+      childrenKeyField: "children",
+    },
   };
 
   //注册自定义API
@@ -208,9 +212,10 @@ class CRUD {
         let rs;
         let error;
         try {
+          const restApi = get<{ url: ""; method: "GET" }>(CRUD.RESTAPI, uName);
           rs = await CRUD.request({
-            url: this.getRestURL() + url,
-            method: method,
+            url: this.getRestURL() + restApi.url,
+            method: restApi.method,
             data: paramObj,
           });
 
@@ -257,8 +262,17 @@ class CRUD {
     selection: Record<string, unknown>[];
     allColumns: Record<string, unknown>[];
     orders: Record<string, unknown>[];
+    [propName: string]: string | Record<string, unknown>[];
   } = {
-    rowKey: "", //主键key
+    _rowKey: "", //主键key
+    set rowKey(v: string) {
+      this._rowKey = v;
+    },
+    get rowKey(): string {
+      const ps = this._rowKey;
+      if (ps > 0) return ps;
+      return CRUD.defaults.table.rowKey;
+    },
     data: [
       // 表单数据托管
     ],
@@ -266,12 +280,7 @@ class CRUD {
     allColumns: [], // 表格所有列，用于动态展示
     orders: [], // 排序列表
   };
-  pagination: {
-    pageSize: number;
-    currentPage: number;
-    total: number;
-    [k: string]: any;
-  } = {
+  pagination: Pagination = {
     _pageSize: 0,
     set pageSize(v: number) {
       this._pageSize = v;
@@ -299,7 +308,8 @@ class CRUD {
    * 当启用多实例时的key
    */
   key: string;
-  private _invalidBreak: boolean | undefined = undefined; 
+  //校验中断
+  private _invalidBreak: boolean | undefined = undefined;
   set invalidBreak(v: boolean) {
     this._invalidBreak = v;
   }
@@ -309,17 +319,55 @@ class CRUD {
     return CRUD.defaults.invalidBreak || false;
   }
   //可恢复
-  private _recoverable: boolean | undefined = undefined; 
+  private _recoverable: boolean | undefined = undefined;
   set recoverable(v: boolean) {
     this._recoverable = v;
   }
-  // 1. 如果CRUD实例设置了pageSize，以实例为准
-  // 2. 如果实例值不合法取defaults
   get recoverable(): boolean {
     const ps = this._recoverable;
     if (!isUndefined(ps)) return ps;
     return CRUD.defaults.recoverable || false;
   }
+
+  autoResponse: AutoResponse = {
+    _position: undefined,
+    set position(v: "head" | "tail") {
+      this._position = v;
+    },
+    get position(): "head" | "tail" {
+      const ps = this._position;
+      if (ps) return ps;
+      return CRUD.defaults.autoResponse.position;
+    },
+    _validator: undefined,
+    set validator(v: (response: any) => boolean) {
+      this._validator = v;
+    },
+    get validator(): (response: any) => boolean {
+      const ps = this._validator;
+      if (ps) return ps;
+      return CRUD.defaults.autoResponse.validator;
+    },
+    _getter: undefined,
+    set getter(v: undefined | AutoResponseGetter) {
+      this._getter = v;
+    },
+    get getter(): undefined | AutoResponseGetter {
+      const ps = this._getter;
+      if (ps) return ps;
+      return CRUD.defaults.autoResponse.getter;
+    },
+    _childrenKeyField: undefined,
+    set childrenKeyField(v: string) {
+      this._childrenKeyField = v;
+    },
+    get childrenKeyField(): string {
+      const ps = this._childrenKeyField;
+      if (ps) return ps;
+      return CRUD.defaults.autoResponse.childrenKeyField;
+    },
+  };
+
   snapshots: Record<string, any> = {};
 
   constructor(restURL: string | RestUrl, key?: string) {
@@ -424,7 +472,7 @@ class CRUD {
 
   async toQuery(query?: Record<string, any>): Promise<unknown> {
     const params = {
-      ...merge(this.query,this.params.query, query),
+      ...merge(this.query, this.params.query, query),
       ...this.pagination,
     };
 
@@ -460,11 +508,12 @@ class CRUD {
     rows: Record<string, unknown> | Record<string, unknown>[]
   ): Promise<unknown> {
     let data = isArray(rows) ? rows : [rows];
+    let ids: string[] = [];
 
     // 通过rowKey自动转为id数组
-    const rowKey = this.table.rowKey || CRUD.defaults.table.rowKey;
+    const rowKey = this.table.rowKey;
     if (rowKey) {
-      data = map(data, (item) => get(item, rowKey));
+      ids = map<string>(data, (item) => get(item, rowKey));
     } else {
       crudWarn(
         `table.rowKey is a blank value '${rowKey}', it may cause an error`,
@@ -486,9 +535,11 @@ class CRUD {
     let rs;
     let error;
     try {
-      rs = await this.doDelete(data);
+      rs = await this.doDelete(ids);
+      const process = getDeleteProcessor(this, ids);
+      autoProcess(rs, this, process);
 
-      await callHook(CRUD.HOOK.AFTER_DELETE, this, rs, data);
+      await callHook(CRUD.HOOK.AFTER_DELETE, this, rs, data, process);
       this.loading.del = this.loading.table = false;
     } catch (e) {
       this.loading.del = this.loading.table = false;
@@ -623,7 +674,7 @@ class CRUD {
   }
   async toEdit(row: Record<string, unknown>): Promise<unknown> {
     let id = "-";
-    const rowKey = this.table.rowKey || CRUD.defaults.table.rowKey;
+    const rowKey = this.table.rowKey;
     if (rowKey) {
       id = row[rowKey] as string;
     } else {
@@ -691,7 +742,7 @@ class CRUD {
   }
   async toView(row: Record<string, unknown>): Promise<unknown> {
     let id = "-";
-    const rowKey = this.table.rowKey || CRUD.defaults.table.rowKey;
+    const rowKey = this.table.rowKey;
     if (rowKey) {
       id = row[rowKey] as string;
     } else {
@@ -743,11 +794,12 @@ class CRUD {
     rows: Record<string, unknown> | Record<string, unknown>[]
   ): Promise<unknown> {
     let data = isArray(rows) ? rows : [rows];
+    let ids: string[] = [];
 
     // 通过rowKey自动转为id数组
-    const rowKey = this.table.rowKey || CRUD.defaults.table.rowKey;
+    const rowKey = this.table.rowKey;
     if (rowKey) {
-      data = map(data, (item) => get(item, rowKey));
+      ids = map<string>(data, (item) => get(item, rowKey));
     } else {
       crudWarn(
         `table.rowKey is a blank value '${rowKey}', it may cause an error`,
@@ -764,9 +816,12 @@ class CRUD {
     let rs;
     let error;
     try {
-      rs = await this.doCopy(data);
+      rs = await this.doCopy(ids);
 
-      await callHook(CRUD.HOOK.AFTER_COPY, this, rs, data);
+      const process = getCopyProcessor(this, ids, rs,data);
+      autoProcess(rs, this, process);
+
+      await callHook(CRUD.HOOK.AFTER_COPY, this, rs, data, process);
       this.loading.copy = this.loading.table = false;
     } catch (e) {
       this.loading.copy = this.loading.table = false;
@@ -790,7 +845,7 @@ class CRUD {
   private async _submit(type: number, ...args: unknown[]): Promise<unknown> {
     let rs;
     let proceed = true;
-    let submitForm;
+    let submitForm: Record<string, any> = this.form;
     await callHook(
       CRUD.HOOK.BEFORE_SUBMIT,
       this,
@@ -803,18 +858,29 @@ class CRUD {
     this.loading.submit = true;
 
     let error;
+    let process;
     try {
       if (type === 1) {
         rs = await this.doAdd(submitForm);
+
+        process = getAddProcessor(this, submitForm, rs);
+        autoProcess(rs, this, process);
+
+        await callHook(CRUD.HOOK.AFTER_ADD, this, rs, process);
       } else if (type === 2) {
         rs = await this.doUpdate(submitForm);
+
+        process = getUpdateProcessor(this, submitForm);
+        autoProcess(rs, this, process);
+
+        await callHook(CRUD.HOOK.AFTER_UPDATE, this, rs, process);
       }
 
       if (isRecoverable(this)) {
         removeSnapshot(this.key, type, this.editingId, this);
       }
 
-      await callHook(CRUD.HOOK.AFTER_SUBMIT, this, rs);
+      await callHook(CRUD.HOOK.AFTER_SUBMIT, this, rs, process);
       this.loading.submit = false;
     } catch (e) {
       this.loading.submit = false;
@@ -853,7 +919,7 @@ class CRUD {
       `This warning meas you might forgot to import a cruda adapter`,
       "- submitForm()"
     );
-    
+
     return this.submit(...args);
   }
 
@@ -890,22 +956,20 @@ class CRUD {
   }
 
   // 执行新增操作
-  private doAdd(form: Record<string, unknown> | undefined): Promise<unknown> {
+  private doAdd(form: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
       url: this.getRestURL() + CRUD.RESTAPI.ADD.url,
       method: CRUD.RESTAPI.ADD.method,
-      data: form || this.form,
+      data: form,
     });
   }
 
   // 执行编辑操作
-  private doUpdate(
-    form: Record<string, unknown> | undefined
-  ): Promise<unknown> {
+  private doUpdate(form: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
       url: this.getRestURL() + CRUD.RESTAPI.UPDATE.url,
       method: CRUD.RESTAPI.UPDATE.method,
-      data: form || this.form,
+      data: form,
     });
   }
 
@@ -948,8 +1012,8 @@ class CRUD {
 
     return CRUD.request({
       url: this.getRestURL() + CRUD.RESTAPI.IMPORT.url,
-      data,
       method: CRUD.RESTAPI.IMPORT.method,
+      data,
     });
   }
 
@@ -972,13 +1036,128 @@ class CRUD {
   }
 }
 
+////////////////////////// auto response
+function autoProcess(response: unknown, crud: CRUD, processor: Function) {
+  if (crud.autoResponse.validator(response)) {
+    processor();
+  }
+}
+function getDeleteProcessor(crud: CRUD, ids: string[]) {
+  return () => {
+    let childParentMap: { [k: string]: Record<string, any>[] } = {};
+
+    findTreeNodes(
+      crud.table.data,
+      (node, parentNode) => {
+        let cid = node[crud.table.rowKey];
+          let hit = includes(ids, cid);
+          if (hit) {
+            childParentMap[cid] = parentNode
+              ? parentNode[crud.autoResponse.childrenKeyField]
+              : crud.table.data;
+          }
+          return hit;
+      },
+      { childrenKey: crud.autoResponse.childrenKeyField }
+    );
+
+    each(childParentMap, (container, cid) => {
+      let record = find(container,data=>data[crud.table.rowKey] == cid)
+      remove(container, record!);
+    });
+  };
+}
+function getUpdateProcessor(crud: CRUD, data: Record<string, any>) {
+  return () => {
+    let row: any = findTreeNode(
+      crud.table.data,
+      (node) => node[crud.table.rowKey] === data[crud.table.rowKey]
+    );
+    assign(row, data);
+  };
+}
+function getAddProcessor(
+  crud: CRUD,
+  form: Record<string, any>,
+  response: unknown
+) {
+  return () => {
+    if (!crud.autoResponse.getter) {
+      crudWarn(`autoResponse.getter is missing`, "- autoResponse.add()");
+      return;
+    }
+    let parentKeyField = crud.autoResponse.parentKeyField;
+    let pos = crud.autoResponse.position;
+    let container = crud.table.data;
+    let datas = crud.autoResponse.getter(response,[form]);
+
+    if (parentKeyField) {
+      //tree
+      let parentId = form[parentKeyField];
+      let parentRow: any = findTreeNode(
+        crud.table.data,
+        (node) => node[crud.table.rowKey] === parentId
+      );
+      if (parentRow) {
+        container = parentRow[crud.autoResponse.childrenKeyField];
+      }
+    }
+
+    if (pos == "head") {
+      insert(container, 0, ...datas);
+    } else {
+      append(container, ...datas);
+    }
+  };
+}
+function getCopyProcessor(crud: CRUD, ids: string[], response: unknown,submitData:Record<string, unknown>[]) {
+  return () => {
+    if (!crud.autoResponse.getter) {
+      crudWarn(`autoResponse.getter is missing`, "- autoResponse.copy()");
+      return;
+    }
+    let pos = crud.autoResponse.position;
+    let childParentMap: { [k: string]: Record<string, any>[] } = {};
+    let datas = crud.autoResponse.getter(response,submitData);
+
+    findTreeNodes(
+      crud.table.data,
+      (node, parentNode) => {
+        let cid = node[crud.table.rowKey];
+        let hit = includes(ids, cid);
+        if (hit) {
+          childParentMap[cid] = parentNode
+            ? parentNode[crud.autoResponse.childrenKeyField]
+            : crud.table.data;
+        }
+        return hit;
+      },
+      { childrenKey: crud.autoResponse.childrenKeyField }
+    );
+
+    each(childParentMap, (container, cid) => {
+      let record = find(datas,data=>data[crud.table.rowKey] == cid)
+      if (pos == "head") {
+        insert(container, 0, record);
+      } else {
+        append(container, record);
+      }
+    });
+  };
+}
+////////////////////////// auto response
+
 /**
  * 调用hook
  * 如果指定了defaults 的hook会叠加调用
  * @param {*} hookName 钩子名称
  * @param {*} crud crud实例
  */
-export async function callHook(hookName: string, crud: CRUD, ...args: unknown[]) {
+export async function callHook(
+  hookName: string,
+  crud: CRUD,
+  ...args: unknown[]
+) {
   const defaultHook = CRUD.defaults[hookName];
   //1. default
   if (isFunction(defaultHook)) await defaultHook(crud, ...args);

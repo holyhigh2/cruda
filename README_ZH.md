@@ -121,6 +121,32 @@ onHook(this,CRUD.HOOK.AFTER_CLONE,(crud,rs)=>{
 //3. 调用 toClone 方法
 this.$crud.toClone({x:1,y:2});
 ```
+### 10. 自动响应 (v1.8+)
+通过配置`autoResponse`参数可以实现add/update/delete/copy操作的自动视图刷新，避免全部通过`reload()`操作而导致的状态丢失。一个典型的场景就是树表操作 —— 可避免因刷新而导致的层级关闭或页面闪烁。具体配置如下
+```ts
+//1. 设置 response 校验器，用于验证返回结果是否成功同时也表示开启自动更新
+$crud.autoResponse.validator = (response:{status:number})=>{
+  return response.status === 200
+}
+//2. autoResponse参数支持默认设置。对于 add/copy 这样的新增操作必须设置getter函数以便从后台获取具有主键的新增记录
+CRUD.defaults.autoResponse.getter = (response:any)=>{
+  return [response.data]
+}
+//2. 如果新增记录在前端获取主键，可以在getter中直接返回提交数据
+CRUD.defaults.autoResponse.getter = (response:any,submitRows?:any[])=>{
+  return submitRows
+}
+//3. 对于树表，新增操作还需要设置parentKeyField属性以便查找上级
+CRUD.defaults.autoResponse.parentKeyField = 'pid'
+```
+之后CRUDA就会替你自动更新视图。如果想手动控制可以在 add/update/delete/copy 操作的 AFTER_XXX 钩子中调用更新方法或自行实现更新
+```ts
+// 其他可用钩子见下方文档
+onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
+  autoProcess()
+})
+```
+
 
 ## Cruda API
 ### VM
@@ -184,6 +210,8 @@ this.$crud.toClone({x:1,y:2});
   > 保存快照内容的对象，key是table.row的id。可用于在视图中显示快照状态，详见examples
 - invalidBreak✅
   > 表单校验检测到首个无效信息时中断校验
+- autoResponse✅
+  > 在表单提交 add/update/delete/copy操作后，自动更新`crud.table.data`视图
 
 ✅ **_表示支持全局默认值_**
 
@@ -215,7 +243,9 @@ this.$crud.toClone({x:1,y:2});
   > 同`submit()`，但不会校验`formStatus`
 - submitEdit(...args) : Promise
   > 同`submit()`，但不会校验`formStatus`
-- reload() : Promise
+- submitForm(form, ...args)
+  > **_*依赖适配器_**。可以对1或多个表单(或具有validate()方法的组件)进行校验，并在通过后调用`submit()`  
+- reload(query?: Record<string, any>) : Promise
   > 重置分页信息并执行一次 toQuery()
 - getRestURL() : string
   > 获取 crud 实例的服务地址。通常用于 crud 内部
@@ -243,12 +273,16 @@ this.$crud.toClone({x:1,y:2});
   > 查询后回调，可以获取查询结果，设置表格
 - BEFORE_DELETE(crud,rows,cancel) _**async**_
   > 删除前调用，可取消。取消后不会触发 AFTER_DELETE
-- AFTER_DELETE(crud,rs,rows) _**async**_
-  > 删除后调用
+- AFTER_DELETE(crud,rs,rows,autoProcess) _**async**_
+  > 删除后调用. `autoProcess()` 用来自动更新视图
 - BEFORE_ADD(crud,cancel,...args) _**async**_
   > 新增前调用，可以用来清空表单或产生 uuid 等。可取消，取消后表单状态不变。*...args* 来自`toAdd()`
+- AFTER_ADD(crud,rs,autoProcess) _**async**_
+  > 新增提交后 `AFTER_SUBMIT`前调用. `autoProcess()` 用来自动更新视图
 - BEFORE_EDIT(crud,row,cancel,skip) _**async**_
   > 编辑前调用，可以用来锁定某些字段。可取消，取消后表单状态不变; `skip()`用来跳过记录详情查询，跳过后不会触发 AFTER_DETAILS 
+- AFTER_UPDATE(crud,rs,autoProcess) _**async**_
+  > 编辑提交后 `AFTER_SUBMIT`前调用. `autoProcess()` 用来自动更新视图
 - BEFORE_VIEW(crud,row,cancel,skip) _**async**_
   > 查看前调用，可以用来对显示内容进行格式化等。可取消，取消后表单状态不变; `skip()`用来跳过记录详情查询，跳过后不会触发 AFTER_DETAILS 
 - AFTER_DETAILS(crud,rs) _**async**_
@@ -259,8 +293,8 @@ this.$crud.toClone({x:1,y:2});
   > 查看(默认)开启详情查询后触发，在`AFTER_DETAILS`之后
 - BEFORE_SUBMIT(crud,cancel,setForm,...args) _**async**_
   > 提交前调用，可对 form 进行最后加工，可取消。取消后不会触发 `AFTER_SUBMIT`。`setForm(formObject)`用于设置提交到后台的form数据，默认`crud.form`
-- AFTER_SUBMIT(crud,rs) _**async**_
-  > 提交后调用，可以用来刷新页面、发送通知或其他操作
+- AFTER_SUBMIT(crud,rs,autoProcess) _**async**_
+  > 提交后调用，可以用来刷新页面、发送通知或其他操作. `autoProcess()` 用来自动更新视图
 - BEFORE_EXPORT(crud,params,orders,cancel) _**async**_
   > 导出前调用，同 BEFORE_QUERY，可取消。取消后不会触发 AFTER_EXPORT
 - AFTER_EXPORT(crud,rs) _**async**_
@@ -276,8 +310,8 @@ this.$crud.toClone({x:1,y:2});
   > 提交排序后调用，可以用来刷新页面、发送通知或其他操作
 - BEFORE_COPY(crud,rows,cancel) _**async**_
   > 复制记录前调用，可取消。取消后不会触发 AFTER_COPY
-- AFTER_COPY(crud,rs,rows) _**async**_
-  > 复制完成后调用
+- AFTER_COPY(crud,rs,rows,autoProcess) _**async**_
+  > 复制完成后调用. `autoProcess()` 用来自动更新视图
 - ON_ERROR(crud,error)
   > 操作发生错误时调用
 - ON_CANCEL(crud)

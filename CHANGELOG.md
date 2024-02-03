@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0] - 2024/2/3 
+### Add
+- VM - autoResponse
+- Hooks - AFTER_ADD & AFTER_UPDATE
+### Change
+- Hooks - extra paramter `autoProcess` in AFTER_SUBMIT/AFTER_DELETE/AFTER_COPY
+
 ## [1.7.0] - 2024/1/29 
 ### Add
 - RestUrl - query?

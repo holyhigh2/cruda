@@ -28,3 +28,14 @@ export interface Pagination {
   total: number;
   [propName: string]: number;
 }
+
+export type AutoResponseGetter = (response: any,submitData?:any[]) => Record<string,any>[]
+
+export interface AutoResponse{
+  position:'head'|'tail',
+  validator:(response: any) => boolean,
+  getter?:AutoResponseGetter;
+  parentKeyField?:string;
+  childrenKeyField:string;
+  [propName: string]: any;
+}

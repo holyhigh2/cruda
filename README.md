@@ -121,6 +121,31 @@ onHook(this,CRUD.HOOK.AFTER_CLONE,(crud,rs)=>{
 //3. Call toClone
 this.$crud.toClone({x:1,y:2});
 ```
+### 10. Auto Response (v1.8+)
+We can config `autoResponse` to refresh table view automatically, this could help you to avoid losing page state if you `reload()` the page after add/update/delete/copy submition before. A typical case is you may lost all hierarchies of TreeTable you opened before when you `reload()`.Below is the config
+```ts
+//1. Set a response validator to check whether the response is valid
+$crud.autoResponse.validator = (response:{status:number})=>{
+  return response.status === 200
+}
+//2. For such an Add-Oper like add/copy/import/..., it must set a getter in order to obtain new records with primary key from backend
+CRUD.defaults.autoResponse.getter = (response:any)=>{
+  return [response.data]
+}
+//2. If primary keys are generated at frontend, you can either return submitRows
+CRUD.defaults.autoResponse.getter = (response:any,submitRows?:any[])=>{
+  return submitRows
+}
+//3. For TreeTable, you need set parentKeyField in order to find parentNode
+CRUD.defaults.autoResponse.parentKeyField = 'pid'
+```
+After that, the table view will refreshed by CRUDA. And if you want to refresh manually you can call `autoProcess()` in the hook below
+```ts
+// Other hooks which can invode autoProcess please see the doc below 
+onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
+  autoProcess()
+})
+```
 
 ## Cruda API
 ### VM
@@ -183,6 +208,8 @@ this.$crud.toClone({x:1,y:2});
   > snapshot map. The key is `table.row[rowKey]`
 - invalidBreak✅
   > will break the validation after first catch
+- autoResponse✅
+  > will update table view automatically after you add/update/delete/copy `crud.table.data`
 
 ✅ **_Indicates that global defaults are supported_**
 
@@ -214,7 +241,9 @@ this.$crud.toClone({x:1,y:2});
   > Same as `submit()` but won't check `formStatus`
 - submitEdit(...args) : Promise
   > Same as `submit()` but won't check`formStatus`
-- reload() : Promise
+- submitForm(form, ...args)
+  > **_*Depends on adapters_**。Will validate one or more Form or CustomComponent(which has validate() method) and then call `submit()`
+- reload(query?: Record<string, any>) : Promise
   > Reset pagination and call toQuery()
 - getRestURL() : string
   > Return restUrl of instance
@@ -241,12 +270,16 @@ this.$crud.toClone({x:1,y:2});
   > Emit after query. Can set table data by 'rs'
 - BEFORE_DELETE(crud,rows,cancel) _**async**_
   > Emit before delete. Cancellable, if be cancelled the `AFTER_DELETE` will not emit
-- AFTER_DELETE(crud,rs,rows) _**async**_
-  > Emit after delete
+- AFTER_DELETE(crud,rs,rows,autoProcess) _**async**_
+  > Emit after delete. Use `autoProcess()` to update table view
 - BEFORE_ADD(crud,cancel,...args) _**async**_
   > Emit before add. Can clear the form data or generate a UUID. Cancellable,if be cancelled the `formStatus` will not be change. *...args* from `toAdd()`
+- AFTER_ADD(crud,rs,autoProcess) _**async**_
+  > Emit after add and before `AFTER_SUBMIT`. Use `autoProcess()` to update table view
 - BEFORE_EDIT(crud,row,cancel,skip) _**async**_
   > Emit before edit. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
+- AFTER_UPDATE(crud,rs,autoProcess) _**async**_
+  > Emit after update and before `AFTER_SUBMIT`. Use `autoProcess()` to update table view
 - BEFORE_VIEW(crud,row,cancel,skip) _**async**_
   > Emit before view. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
 - AFTER_DETAILS(crud,rs) _**async**_
@@ -257,8 +290,8 @@ this.$crud.toClone({x:1,y:2});
   > Emit after `toView` and `AFTER_DETAILS`
 - BEFORE_SUBMIT(crud,cancel,setForm,...args) _**async**_
   > Emit before form submit. Cancellable, if be cancelled the `AFTER_SUBMIT` will not emit. Use `setForm(formObject)` to set form-data to submit
-- AFTER_SUBMIT(crud,rs) _**async**_
-  > Emit after form submit. Can reload page, send notice here
+- AFTER_SUBMIT(crud,rs,autoProcess) _**async**_
+  > Emit after form submit. Can reload page, send notice here. Use `autoProcess()` to update table view
 - BEFORE_EXPORT(crud,params,orders,cancel) _**async**_
   > Emit before export. Cancellable, if be cancelled the `AFTER_EXPORT` will not emit
 - AFTER_EXPORT(crud,rs) _**async**_
@@ -273,8 +306,8 @@ this.$crud.toClone({x:1,y:2});
   > Emit after sort complete
 - BEFORE_COPY(crud,rows,cancel) _**async**_
   > Emit before copy. Cancellable, if be cancelled the `AFTER_COPY` will not emit
-- AFTER_COPY(crud,rs,rows) _**async**_
-  > Emit after copy complete
+- AFTER_COPY(crud,rs,rows,autoProcess) _**async**_
+  > Emit after copy complete. Use `autoProcess()` to update table view
 - ON_ERROR(crud,error)
   > Emit on error
 - ON_CANCEL(crud)
