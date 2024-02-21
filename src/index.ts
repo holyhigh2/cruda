@@ -214,8 +214,8 @@ class CRUD {
         try {
           const restApi = get<{ url: ""; method: "GET" }>(CRUD.RESTAPI, uName);
           rs = await CRUD.request({
-            url: this.getRestURL() + restApi.url,
-            method: restApi.method,
+            url: getRestUrl(this,uName,restApi.url),
+            method: getRestMethod(this,uName,restApi.method),
             data: paramObj,
           });
 
@@ -939,8 +939,8 @@ class CRUD {
   // 查询row详情
   getDetails(id: string, params: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
-      url: this.getRestURL() + CRUD.RESTAPI.QUERY.url + "/" + id,
-      method: CRUD.RESTAPI.QUERY.method,
+      url: getRestUrl(this,'QUERY',CRUD.RESTAPI.QUERY.url) + "/" + id,
+      method: getRestMethod(this,'QUERY',CRUD.RESTAPI.QUERY.method),
       params,
     });
   }
@@ -949,17 +949,17 @@ class CRUD {
   // 执行查询操作
   private doQuery(params?: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
-      url: this.getRestURL() + CRUD.RESTAPI.QUERY.url,
+      url: getRestUrl(this,'QUERY',CRUD.RESTAPI.QUERY.url),
+      method: getRestMethod(this,'QUERY',CRUD.RESTAPI.QUERY.method),
       params,
-      method: CRUD.RESTAPI.QUERY.method,
     });
   }
 
   // 执行新增操作
   private doAdd(form: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
-      url: this.getRestURL() + CRUD.RESTAPI.ADD.url,
-      method: CRUD.RESTAPI.ADD.method,
+      url: getRestUrl(this,'ADD',CRUD.RESTAPI.ADD.url),
+      method: getRestMethod(this,'ADD',CRUD.RESTAPI.ADD.method),
       data: form,
     });
   }
@@ -967,8 +967,8 @@ class CRUD {
   // 执行编辑操作
   private doUpdate(form: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
-      url: this.getRestURL() + CRUD.RESTAPI.UPDATE.url,
-      method: CRUD.RESTAPI.UPDATE.method,
+      url: getRestUrl(this,'UPDATE',CRUD.RESTAPI.UPDATE.url),
+      method: getRestMethod(this,'UPDATE',CRUD.RESTAPI.UPDATE.method),
       data: form,
     });
   }
@@ -976,8 +976,8 @@ class CRUD {
   // 执行删除操作
   private doDelete(data: unknown[]): Promise<unknown> {
     return CRUD.request({
-      url: this.getRestURL() + CRUD.RESTAPI.DELETE.url,
-      method: CRUD.RESTAPI.DELETE.method,
+      url: getRestUrl(this,'DELETE',CRUD.RESTAPI.DELETE.url),
+      method: getRestMethod(this,'DELETE',CRUD.RESTAPI.DELETE.method),
       data,
     });
   }
@@ -985,9 +985,9 @@ class CRUD {
   // 执行导出操作
   private doExport(params?: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
-      url: this.getRestURL() + CRUD.RESTAPI.EXPORT.url,
+      url: getRestUrl(this,'EXPORT',CRUD.RESTAPI.EXPORT.url),
+      method: getRestMethod(this,'EXPORT',CRUD.RESTAPI.EXPORT.method),
       params,
-      method: CRUD.RESTAPI.EXPORT.method,
       responseType: "blob",
     });
   }
@@ -1011,8 +1011,8 @@ class CRUD {
     }
 
     return CRUD.request({
-      url: this.getRestURL() + CRUD.RESTAPI.IMPORT.url,
-      method: CRUD.RESTAPI.IMPORT.method,
+      url: getRestUrl(this,'IMPORT',CRUD.RESTAPI.IMPORT.url),
+      method: getRestMethod(this,'IMPORT',CRUD.RESTAPI.IMPORT.method),
       data,
     });
   }
@@ -1020,8 +1020,8 @@ class CRUD {
   // 执行导入操作
   private doSort(): Promise<unknown> {
     return CRUD.request({
-      url: this.getRestURL() + CRUD.RESTAPI.SORT.url,
-      method: CRUD.RESTAPI.SORT.method,
+      url: getRestUrl(this,'SORT',CRUD.RESTAPI.SORT.url),
+      method: getRestMethod(this,'SORT',CRUD.RESTAPI.SORT.method),
       data: this.sortation,
     });
   }
@@ -1029,8 +1029,8 @@ class CRUD {
   // 执行复制操作
   private doCopy(data: unknown[]): Promise<unknown> {
     return CRUD.request({
-      url: this.getRestURL() + CRUD.RESTAPI.COPY.url,
-      method: CRUD.RESTAPI.COPY.method,
+      url: getRestUrl(this,'COPY',CRUD.RESTAPI.COPY.url),
+      method: getRestMethod(this,'COPY',CRUD.RESTAPI.COPY.method),
       data,
     });
   }
@@ -1146,6 +1146,19 @@ function getCopyProcessor(crud: CRUD, ids: string[], response: unknown,submitDat
   };
 }
 ////////////////////////// auto response
+function getRestUrl(crud:CRUD,opName:string,defaultUrl:string){
+  const instanceApi = get(crud.params.restApi,opName) as any
+  if(!instanceApi)return crud.getRestURL() + defaultUrl
+
+  return crud.getRestURL() + (instanceApi.url || instanceApi)
+}
+
+function getRestMethod(crud:CRUD,opName:string,defaultMethod:string){
+  const instanceApi = get(crud.params.restApi,opName) as any
+  if(!instanceApi || !instanceApi.method)return defaultMethod
+
+  return instanceApi.method
+}
 
 /**
  * 调用hook

@@ -105,8 +105,21 @@ CRUD.RESTAPI = {
   COPY: { url: "/copy", method: "POST" },
 }
 ```
+#### Instance API (v1.9+)
+Or set instance-only API when Activation
+```js
+const $crud = useCrud({
+  url:'/api/single',
+  restApi:{
+    //支持对象格式或字符串格式(仅能设置url)
+    ADD:{url:'/add-batch',method:'POST'},
+    COPY:'/copy2'
+  }
+})
+```
+>**\*** Note the api key must be uppercase
 ### 9. xApi (v1.5+)
-`CRUD.xApi(apiName, apiUrl, config)` is used to extends custom CRUD RESTAPI. Below is an example
+`CRUD.xApi(apiName, apiUrl, config)` is used to extend custom CRUD RESTAPI. Below is an example
 ```js
 //1. Extends an API. After that it will
 /**

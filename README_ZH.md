@@ -105,6 +105,19 @@ CRUD.RESTAPI = {
   COPY: { url: "/copy", method: "POST" },
 }
 ```
+#### 实例API (v1.9+)
+也可以在激活时设置实例专用的RESTAPI
+```js
+const $crud = useCrud({
+  url:'/api/single',
+  restApi:{
+    //支持对象格式或字符串格式(仅能设置url)
+    ADD:{url:'/add-batch',method:'POST'},
+    COPY:'/copy2'
+  }
+})
+```
+>**\*** api的key必须是大写格式
 ### 9. xApi (v1.5+)
 `CRUD.xApi(apiName,apiUrl,config)` 可用于扩展 CRUD RESTAPI 以对业务接口进行统一管理。下面的例子演示了如何扩展一个CRUD API
 ```js

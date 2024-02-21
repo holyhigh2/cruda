@@ -1,6 +1,6 @@
 {
   "name": "cruda",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "A CRUD viewmodal, provides unified APIs for different UIFrameworks",
   "main": "index.js",
   "module": "index.js",
@@ -26,9 +26,6 @@
   "scripts": {
     "lint": "eslint src/**",
     "build": "rollup --config"
-  },
-  "peerDependencies": {
-    "myfx": ">=1.x"
   },
   "devDependencies": {
     "myfx":"1.1.2",

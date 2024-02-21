@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.0] - 2024/2/21 
+### Add
+- RestUrl - restApi?
+### Remove
+- package.json - peerDependencies
+
 ## [1.8.0] - 2024/2/3 
 ### Add
 - VM - autoResponse
