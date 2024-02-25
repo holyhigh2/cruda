@@ -19,7 +19,13 @@ import {
 } from "myfx/is";
 import { merge, get, set, keys, assign } from "myfx/object";
 
-import { RestUrl, CRUDError, Pagination, AutoResponse, AutoResponseGetter } from "./types";
+import {
+  RestUrl,
+  CRUDError,
+  Pagination,
+  AutoResponse,
+  AutoResponseGetter,
+} from "./types";
 import { findTreeNode, findTreeNodes } from "myfx";
 
 function viewSetter(v: boolean, prop: string, bind: CRUD["view"]) {
@@ -171,6 +177,7 @@ class CRUD {
       position: "head",
       validator: () => false,
       childrenKeyField: "children",
+      parentKeyField: "pid",
     },
   };
 
@@ -214,8 +221,8 @@ class CRUD {
         try {
           const restApi = get<{ url: ""; method: "GET" }>(CRUD.RESTAPI, uName);
           rs = await CRUD.request({
-            url: getRestUrl(this,uName,restApi.url),
-            method: getRestMethod(this,uName,restApi.method),
+            url: getRestUrl(this, uName, restApi.url),
+            method: getRestMethod(this, uName, restApi.method),
             data: paramObj,
           });
 
@@ -365,6 +372,15 @@ class CRUD {
       const ps = this._childrenKeyField;
       if (ps) return ps;
       return CRUD.defaults.autoResponse.childrenKeyField;
+    },
+    _parentKeyField: undefined,
+    set parentKeyField(v: string) {
+      this._parentKeyField = v;
+    },
+    get parentKeyField(): string {
+      const ps = this._parentKeyField;
+      if (ps) return ps;
+      return CRUD.defaults.autoResponse.parentKeyField;
     },
   };
 
@@ -818,7 +834,7 @@ class CRUD {
     try {
       rs = await this.doCopy(ids);
 
-      const process = getCopyProcessor(this, ids, rs,data);
+      const process = getCopyProcessor(this, ids, rs, data);
       autoProcess(rs, this, process);
 
       await callHook(CRUD.HOOK.AFTER_COPY, this, rs, data, process);
@@ -870,7 +886,7 @@ class CRUD {
       } else if (type === 2) {
         rs = await this.doUpdate(submitForm);
 
-        process = getUpdateProcessor(this, submitForm);
+        process = getUpdateProcessor(this, submitForm, rs);
         autoProcess(rs, this, process);
 
         await callHook(CRUD.HOOK.AFTER_UPDATE, this, rs, process);
@@ -939,8 +955,8 @@ class CRUD {
   // 查询row详情
   getDetails(id: string, params: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
-      url: getRestUrl(this,'QUERY',CRUD.RESTAPI.QUERY.url) + "/" + id,
-      method: getRestMethod(this,'QUERY',CRUD.RESTAPI.QUERY.method),
+      url: getRestUrl(this, "QUERY", CRUD.RESTAPI.QUERY.url) + "/" + id,
+      method: getRestMethod(this, "QUERY", CRUD.RESTAPI.QUERY.method),
       params,
     });
   }
@@ -949,8 +965,8 @@ class CRUD {
   // 执行查询操作
   private doQuery(params?: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
-      url: getRestUrl(this,'QUERY',CRUD.RESTAPI.QUERY.url),
-      method: getRestMethod(this,'QUERY',CRUD.RESTAPI.QUERY.method),
+      url: getRestUrl(this, "QUERY", CRUD.RESTAPI.QUERY.url),
+      method: getRestMethod(this, "QUERY", CRUD.RESTAPI.QUERY.method),
       params,
     });
   }
@@ -958,8 +974,8 @@ class CRUD {
   // 执行新增操作
   private doAdd(form: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
-      url: getRestUrl(this,'ADD',CRUD.RESTAPI.ADD.url),
-      method: getRestMethod(this,'ADD',CRUD.RESTAPI.ADD.method),
+      url: getRestUrl(this, "ADD", CRUD.RESTAPI.ADD.url),
+      method: getRestMethod(this, "ADD", CRUD.RESTAPI.ADD.method),
       data: form,
     });
   }
@@ -967,8 +983,8 @@ class CRUD {
   // 执行编辑操作
   private doUpdate(form: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
-      url: getRestUrl(this,'UPDATE',CRUD.RESTAPI.UPDATE.url),
-      method: getRestMethod(this,'UPDATE',CRUD.RESTAPI.UPDATE.method),
+      url: getRestUrl(this, "UPDATE", CRUD.RESTAPI.UPDATE.url),
+      method: getRestMethod(this, "UPDATE", CRUD.RESTAPI.UPDATE.method),
       data: form,
     });
   }
@@ -976,8 +992,8 @@ class CRUD {
   // 执行删除操作
   private doDelete(data: unknown[]): Promise<unknown> {
     return CRUD.request({
-      url: getRestUrl(this,'DELETE',CRUD.RESTAPI.DELETE.url),
-      method: getRestMethod(this,'DELETE',CRUD.RESTAPI.DELETE.method),
+      url: getRestUrl(this, "DELETE", CRUD.RESTAPI.DELETE.url),
+      method: getRestMethod(this, "DELETE", CRUD.RESTAPI.DELETE.method),
       data,
     });
   }
@@ -985,8 +1001,8 @@ class CRUD {
   // 执行导出操作
   private doExport(params?: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
-      url: getRestUrl(this,'EXPORT',CRUD.RESTAPI.EXPORT.url),
-      method: getRestMethod(this,'EXPORT',CRUD.RESTAPI.EXPORT.method),
+      url: getRestUrl(this, "EXPORT", CRUD.RESTAPI.EXPORT.url),
+      method: getRestMethod(this, "EXPORT", CRUD.RESTAPI.EXPORT.method),
       params,
       responseType: "blob",
     });
@@ -1011,8 +1027,8 @@ class CRUD {
     }
 
     return CRUD.request({
-      url: getRestUrl(this,'IMPORT',CRUD.RESTAPI.IMPORT.url),
-      method: getRestMethod(this,'IMPORT',CRUD.RESTAPI.IMPORT.method),
+      url: getRestUrl(this, "IMPORT", CRUD.RESTAPI.IMPORT.url),
+      method: getRestMethod(this, "IMPORT", CRUD.RESTAPI.IMPORT.method),
       data,
     });
   }
@@ -1020,8 +1036,8 @@ class CRUD {
   // 执行导入操作
   private doSort(): Promise<unknown> {
     return CRUD.request({
-      url: getRestUrl(this,'SORT',CRUD.RESTAPI.SORT.url),
-      method: getRestMethod(this,'SORT',CRUD.RESTAPI.SORT.method),
+      url: getRestUrl(this, "SORT", CRUD.RESTAPI.SORT.url),
+      method: getRestMethod(this, "SORT", CRUD.RESTAPI.SORT.method),
       data: this.sortation,
     });
   }
@@ -1029,8 +1045,8 @@ class CRUD {
   // 执行复制操作
   private doCopy(data: unknown[]): Promise<unknown> {
     return CRUD.request({
-      url: getRestUrl(this,'COPY',CRUD.RESTAPI.COPY.url),
-      method: getRestMethod(this,'COPY',CRUD.RESTAPI.COPY.method),
+      url: getRestUrl(this, "COPY", CRUD.RESTAPI.COPY.url),
+      method: getRestMethod(this, "COPY", CRUD.RESTAPI.COPY.method),
       data,
     });
   }
@@ -1050,30 +1066,41 @@ function getDeleteProcessor(crud: CRUD, ids: string[]) {
       crud.table.data,
       (node, parentNode) => {
         let cid = node[crud.table.rowKey];
-          let hit = includes(ids, cid);
-          if (hit) {
-            childParentMap[cid] = parentNode
-              ? parentNode[crud.autoResponse.childrenKeyField]
-              : crud.table.data;
-          }
-          return hit;
+        let hit = includes(ids, cid);
+        if (hit) {
+          childParentMap[cid] = parentNode
+            ? parentNode[crud.autoResponse.childrenKeyField]
+            : crud.table.data;
+        }
+        return hit;
       },
       { childrenKey: crud.autoResponse.childrenKeyField }
     );
 
     each(childParentMap, (container, cid) => {
-      let record = find(container,data=>data[crud.table.rowKey] == cid)
+      let record = find(container, (data) => data[crud.table.rowKey] == cid);
       remove(container, record!);
     });
   };
 }
-function getUpdateProcessor(crud: CRUD, data: Record<string, any>) {
+function getUpdateProcessor(
+  crud: CRUD,
+  data: Record<string, any>,
+  response: unknown
+) {
   return () => {
     let row: any = findTreeNode(
       crud.table.data,
       (node) => node[crud.table.rowKey] === data[crud.table.rowKey]
     );
-    assign(row, data);
+    if(crud.autoResponse.getter){
+      let datas = crud.autoResponse.getter(response, [data]);
+      if(get(datas,0)){
+        data = get(datas,0)
+      }
+    }
+    
+    innerUpdater(row,data)
   };
 }
 function getAddProcessor(
@@ -1089,7 +1116,7 @@ function getAddProcessor(
     let parentKeyField = crud.autoResponse.parentKeyField;
     let pos = crud.autoResponse.position;
     let container = crud.table.data;
-    let datas = crud.autoResponse.getter(response,[form]);
+    let datas = crud.autoResponse.getter(response, [form]);
 
     if (parentKeyField) {
       //tree
@@ -1100,6 +1127,10 @@ function getAddProcessor(
       );
       if (parentRow) {
         container = parentRow[crud.autoResponse.childrenKeyField];
+        if (!container) {
+          innerUpdater(parentRow, { [crud.autoResponse.childrenKeyField]: [] });
+          container = parentRow[crud.autoResponse.childrenKeyField];
+        }
       }
     }
 
@@ -1110,7 +1141,12 @@ function getAddProcessor(
     }
   };
 }
-function getCopyProcessor(crud: CRUD, ids: string[], response: unknown,submitData:Record<string, unknown>[]) {
+function getCopyProcessor(
+  crud: CRUD,
+  ids: string[],
+  response: unknown,
+  submitData: Record<string, unknown>[]
+) {
   return () => {
     if (!crud.autoResponse.getter) {
       crudWarn(`autoResponse.getter is missing`, "- autoResponse.copy()");
@@ -1118,7 +1154,7 @@ function getCopyProcessor(crud: CRUD, ids: string[], response: unknown,submitDat
     }
     let pos = crud.autoResponse.position;
     let childParentMap: { [k: string]: Record<string, any>[] } = {};
-    let datas = crud.autoResponse.getter(response,submitData);
+    let datas = crud.autoResponse.getter(response, submitData);
 
     findTreeNodes(
       crud.table.data,
@@ -1136,7 +1172,7 @@ function getCopyProcessor(crud: CRUD, ids: string[], response: unknown,submitDat
     );
 
     each(childParentMap, (container, cid) => {
-      let record = find(datas,data=>data[crud.table.rowKey] == cid)
+      let record = find(datas, (data) => data[crud.table.rowKey] == cid);
       if (pos == "head") {
         insert(container, 0, record);
       } else {
@@ -1146,18 +1182,18 @@ function getCopyProcessor(crud: CRUD, ids: string[], response: unknown,submitDat
   };
 }
 ////////////////////////// auto response
-function getRestUrl(crud:CRUD,opName:string,defaultUrl:string){
-  const instanceApi = get(crud.params.restApi,opName) as any
-  if(!instanceApi)return crud.getRestURL() + defaultUrl
+function getRestUrl(crud: CRUD, opName: string, defaultUrl: string) {
+  const instanceApi = get(crud.params.restApi, opName) as any;
+  if (!instanceApi) return crud.getRestURL() + defaultUrl;
 
-  return crud.getRestURL() + (instanceApi.url || instanceApi)
+  return crud.getRestURL() + (instanceApi.url || instanceApi);
 }
 
-function getRestMethod(crud:CRUD,opName:string,defaultMethod:string){
-  const instanceApi = get(crud.params.restApi,opName) as any
-  if(!instanceApi || !instanceApi.method)return defaultMethod
+function getRestMethod(crud: CRUD, opName: string, defaultMethod: string) {
+  const instanceApi = get(crud.params.restApi, opName) as any;
+  if (!instanceApi || !instanceApi.method) return defaultMethod;
 
-  return instanceApi.method
+  return instanceApi.method;
 }
 
 /**

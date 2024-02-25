@@ -145,12 +145,16 @@ $crud.autoResponse.validator = (response:{status:number})=>{
 CRUD.defaults.autoResponse.getter = (response:any)=>{
   return [response.data]
 }
-//2. 如果新增记录在前端获取主键，可以在getter中直接返回提交数据
+//2. 如果新增记录在前端获取主键，可以在getter中直接返回提交数据。对于更新操作，如果未设置getter则使用提交数据进行更新
 CRUD.defaults.autoResponse.getter = (response:any,submitRows?:any[])=>{
   return submitRows
 }
-//3. 对于树表，新增操作还需要设置parentKeyField属性以便查找上级
+//3. 对于树表，新增操作还可以设置parentKeyField属性以便查找上级。默认pid
 CRUD.defaults.autoResponse.parentKeyField = 'pid'
+//4. 插入操作时可以指定插入位置 head 或 tail。默认head
+CRUD.defaults.autoResponse.position = 'head'
+//5. 对于树表，删除操作还可以设置childrenKeyField属性以便查找下级。默认children
+CRUD.defaults.autoResponse.childrenKeyField = 'children'
 ```
 之后CRUDA就会替你自动更新视图。如果想手动控制可以在 add/update/delete/copy 操作的 AFTER_XXX 钩子中调用更新方法或自行实现更新
 ```ts

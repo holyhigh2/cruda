@@ -5,6 +5,8 @@
 - RestUrl - restApi?
 ### Remove
 - package.json - peerDependencies
+### Fixed
+- can not autoResponse correctly when add/update
 
 ## [1.8.0] - 2024/2/3 
 ### Add

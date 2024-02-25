@@ -39,7 +39,7 @@ export interface AutoResponse{
   position:'head'|'tail',
   validator:(response: any) => boolean,
   getter?:AutoResponseGetter;
-  parentKeyField?:string;
+  parentKeyField:string;
   childrenKeyField:string;
   [propName: string]: any;
 }

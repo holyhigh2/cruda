@@ -137,7 +137,7 @@ this.$crud.toClone({x:1,y:2});
 ### 10. Auto Response (v1.8+)
 We can config `autoResponse` to refresh table view automatically, this could help you to avoid losing page state if you `reload()` the page after add/update/delete/copy submition before. A typical case is you may lost all hierarchies of TreeTable you opened before when you `reload()`.Below is the config
 ```ts
-//1. Set a response validator to check whether the response is valid
+//1. Set a response validator to check if the response is valid
 $crud.autoResponse.validator = (response:{status:number})=>{
   return response.status === 200
 }
@@ -149,8 +149,12 @@ CRUD.defaults.autoResponse.getter = (response:any)=>{
 CRUD.defaults.autoResponse.getter = (response:any,submitRows?:any[])=>{
   return submitRows
 }
-//3. For TreeTable, you need set parentKeyField in order to find parentNode
+//3. For TreeTable, you need set parentKeyField in order to find parentNode. Default 'pid'
 CRUD.defaults.autoResponse.parentKeyField = 'pid'
+//4. Set insert position with 'head/tail'. Default 'head'
+CRUD.defaults.autoResponse.position = 'head'
+//4. For TreeTable, you need set childrenKeyField in order to find childNodes. Default 'children'
+CRUD.defaults.autoResponse.childrenKeyField = 'children'
 ```
 After that, the table view will refreshed by CRUDA. And if you want to refresh manually you can call `autoProcess()` in the hook below
 ```ts
