@@ -9,13 +9,17 @@ export interface RestUrl {
    */
   url: string;
   /**
-   * GET请求时合并到自动合并到请求参数中
+   * GET请求时自动合并到请求参数中
    */
   query?: Record<string, string | number>;
   /**
    * 实例中的restApi地址会覆盖全局地址,key必须大写
    */
-  restApi?:Record<string, string|{url:string,method:string}>;
+  restApi?: Record<string, string | { url: string, method: string }>;
+  /**
+   * 自动响应实例配置
+   */
+  autoResponse?: AutoResponse;
   [param: string]: unknown;
 }
 
@@ -39,7 +43,7 @@ export interface AutoResponse{
   position:'head'|'tail',
   validator:(response: any) => boolean,
   getter?:AutoResponseGetter;
-  parentKeyField:string;
+  parentKeyField?:string;
   childrenKeyField:string;
   [propName: string]: any;
 }

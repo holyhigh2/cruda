@@ -4,7 +4,7 @@
  * @author holyhigh
  */
 import { map, each, find, filter, includes } from "myfx/collection";
-import { append, insert, remove } from "myfx/array";
+import { append, findIndex, insert, remove } from "myfx/array";
 import { partial } from "myfx/function";
 import { startsWith, trim, upperCase, upperFirst } from "myfx/string";
 import { uuid } from "myfx/utils";
@@ -176,8 +176,7 @@ class CRUD {
     autoResponse: {
       position: "head",
       validator: () => false,
-      childrenKeyField: "children",
-      parentKeyField: "pid",
+      childrenKeyField: "children"
     },
   };
 
@@ -380,7 +379,7 @@ class CRUD {
     get parentKeyField(): string {
       const ps = this._parentKeyField;
       if (ps) return ps;
-      return CRUD.defaults.autoResponse.parentKeyField;
+      return CRUD.defaults.autoResponse.parentKeyField||'';
     },
   };
 
@@ -392,6 +391,10 @@ class CRUD {
       const p = restURL;
       url = p.url;
       this.params = Object.freeze(p);
+      if (p.autoResponse){
+        assign(this.autoResponse,p.autoResponse)
+      }
+      
     } else {
       url = restURL;
     }
@@ -1078,8 +1081,8 @@ function getDeleteProcessor(crud: CRUD, ids: string[]) {
     );
 
     each(childParentMap, (container, cid) => {
-      let record = find(container, (data) => data[crud.table.rowKey] == cid);
-      remove(container, record!);
+      let recordI = findIndex(container, (data) => data[crud.table.rowKey] == cid);
+      container.splice(recordI, 1)
     });
   };
 }
@@ -1095,7 +1098,7 @@ function getUpdateProcessor(
     );
     if(crud.autoResponse.getter){
       let datas = crud.autoResponse.getter(response, [data]);
-      if(get(datas,0)){
+      if (isObject(get(datas, 0))){
         data = get(datas,0)
       }
     }
