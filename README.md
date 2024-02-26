@@ -219,16 +219,20 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
   > editing id of the `table.row`
 - key
   > crud key in multi-instance
-- recoverable✅
+- recoverable✅⚡
   > enable/disable editing snapshot
 - snapshots
   > snapshot map. The key is `table.row[rowKey]`
-- invalidBreak✅
+- invalidBreak✅⚡
   > will break the validation after first catch
-- autoResponse✅
+- autoResponse✅⚡
   > will update table view automatically after you add/update/delete/copy `crud.table.data`
+- defaultQuery⚡
+  > Will merge into the GET request
+- restApi⚡
+  > Instance api that will recover the `8. RESTAPI`
 
-✅ **_Indicates that global defaults are supported_**
+✅ **_Indicates that global defaults are supported_** ⚡ **_Indicates that activation in object form is supported_**
 
 ### Methods
 

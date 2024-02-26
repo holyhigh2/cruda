@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10.0] - 2024/2/26
+### Add
+- RestUrl - defaultQuery/restApi/invalidBreak/recoverable/autoResponse
+### Remove
+- RestUrl - query
+
 ## [1.9.0] - 2024/2/21 
 ### Add
 - RestUrl - restApi?

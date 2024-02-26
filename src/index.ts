@@ -176,7 +176,7 @@ class CRUD {
     autoResponse: {
       position: "head",
       validator: () => false,
-      childrenKeyField: "children"
+      childrenKeyField: "children",
     },
   };
 
@@ -261,6 +261,8 @@ class CRUD {
     sort: false, //排序中
     copy: false, //复制中
   };
+  defaultQuery: Record<string, any> | undefined; //查询数据
+  restApi: Record<string, string | { url: string; method: string }> | undefined;
   query: Record<string, any> = {}; //查询数据
   table: {
     rowKey: string;
@@ -379,22 +381,24 @@ class CRUD {
     get parentKeyField(): string {
       const ps = this._parentKeyField;
       if (ps) return ps;
-      return CRUD.defaults.autoResponse.parentKeyField||'';
+      return CRUD.defaults.autoResponse.parentKeyField || "";
     },
   };
 
   snapshots: Record<string, any> = {};
 
   constructor(restURL: string | RestUrl, key?: string) {
-    let url;
+    let url,defaultQuery,restApi
     if (isObject(restURL)) {
       const p = restURL;
       url = p.url;
       this.params = Object.freeze(p);
-      if (p.autoResponse){
-        assign(this.autoResponse,p.autoResponse)
+      if (p.autoResponse) {
+        assign(this.autoResponse, p.autoResponse);
       }
-      
+      this._invalidBreak = p.invalidBreak;
+      defaultQuery = p.defaultQuery;
+      restApi = p.restApi;
     } else {
       url = restURL;
     }
@@ -414,6 +418,16 @@ class CRUD {
         writable: true,
       },
       error: {
+        configurable: false,
+        writable: true,
+      },
+      defaultQuery: {
+        value: defaultQuery,
+        configurable: false,
+        writable: true,
+      },
+      restApi: {
+        value: restApi,
         configurable: false,
         writable: true,
       },
@@ -491,7 +505,7 @@ class CRUD {
 
   async toQuery(query?: Record<string, any>): Promise<unknown> {
     const params = {
-      ...merge(this.query, this.params.query, query),
+      ...merge(this.query, this.defaultQuery, query),
       ...this.pagination,
     };
 
@@ -1081,8 +1095,11 @@ function getDeleteProcessor(crud: CRUD, ids: string[]) {
     );
 
     each(childParentMap, (container, cid) => {
-      let recordI = findIndex(container, (data) => data[crud.table.rowKey] == cid);
-      container.splice(recordI, 1)
+      let recordI = findIndex(
+        container,
+        (data) => data[crud.table.rowKey] == cid
+      );
+      container.splice(recordI, 1);
     });
   };
 }
@@ -1096,14 +1113,14 @@ function getUpdateProcessor(
       crud.table.data,
       (node) => node[crud.table.rowKey] === data[crud.table.rowKey]
     );
-    if(crud.autoResponse.getter){
+    if (crud.autoResponse.getter) {
       let datas = crud.autoResponse.getter(response, [data]);
-      if (isObject(get(datas, 0))){
-        data = get(datas,0)
+      if (isObject(get(datas, 0))) {
+        data = get(datas, 0);
       }
     }
-    
-    innerUpdater(row,data)
+
+    innerUpdater(row, data);
   };
 }
 function getAddProcessor(

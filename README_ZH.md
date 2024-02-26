@@ -166,7 +166,7 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
 
 
 ## Cruda API
-### VM
+### Props
 
 - view ✅
   > 业务组件通过 view 来控制 UI
@@ -221,18 +221,22 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
   > 当前正在编辑器的表单行id，根据`table.rowKey`属性确定
 - key
   > 多实例下每个crud实例的标识
-- recoverable✅
+- recoverable✅⚡
   > 是否开启编辑快照，开启后会在新增/编辑时保存form快照
 - snapshots
   > 保存快照内容的对象，key是table.row的id。可用于在视图中显示快照状态，详见examples
-- invalidBreak✅
+- invalidBreak✅⚡
   > 表单校验检测到首个无效信息时中断校验
-- autoResponse✅
+- autoResponse✅⚡
   > 在表单提交 add/update/delete/copy操作后，自动更新`crud.table.data`视图
+- defaultQuery⚡
+  > 默认查询参数，GET请求时自动合并到请求参数中
+- restApi⚡
+  > 实例api，可覆盖 `8. RESTAPI`
 
-✅ **_表示支持全局默认值_**
+✅ **_表示支持全局默认值_**  ⚡ **_表示支持对象激活参数_**
 
-## APIs
+### Methods
 
 - toQuery(query?: Record<string, any>) : Promise
   > 启动 crud 实例的查询。向指定 REST 地址发送 GET 请求。query参数会与$crud.query进行[merge](https://holyhigh2.github.io/func.js/api/modules/object#merge)但不会修改$crud.query
@@ -281,7 +285,7 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
 - getContext()
   > 获取crud实例所在的上下文
 
-## HOOKs
+### HOOKs
 
 - BEFORE_QUERY(crud,params,orders,cancel) _**async**_
   > 查询前回调，可以修改请求参数(params)，比如分页名称等，可取消。取消后不会触发 AFTER_QUERY  

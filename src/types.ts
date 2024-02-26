@@ -11,11 +11,13 @@ export interface RestUrl {
   /**
    * GET请求时自动合并到请求参数中
    */
-  query?: Record<string, string | number>;
+  defaultQuery?: Record<string, string | number>;
   /**
    * 实例中的restApi地址会覆盖全局地址,key必须大写
    */
   restApi?: Record<string, string | { url: string, method: string }>;
+  invalidBreak?:boolean;
+  recoverable?:boolean;
   /**
    * 自动响应实例配置
    */
