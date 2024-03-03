@@ -4,7 +4,7 @@
  * @author holyhigh
  */
 import { map, each, find, filter, includes } from "myfx/collection";
-import { append, findIndex, insert, remove } from "myfx/array";
+import { findIndex, remove } from "myfx/array";
 import { partial } from "myfx/function";
 import { startsWith, trim, upperCase, upperFirst } from "myfx/string";
 import { uuid } from "myfx/utils";
@@ -1110,14 +1110,14 @@ function getUpdateProcessor(
 ) {
   return () => {
     let oldParentRow: any;
-    let rowIndex:number = -1;
+    let rowIndex: number = -1;
     let row: any = findTreeNode(
       crud.table.data,
-      (node,parentNode,chain,level,index) => {
-        let rs = node[crud.table.rowKey] === rowData[crud.table.rowKey]
-        if(rs){
+      (node, parentNode, chain, level, index) => {
+        let rs = node[crud.table.rowKey] === rowData[crud.table.rowKey];
+        if (rs) {
           oldParentRow = parentNode;
-          rowIndex = index
+          rowIndex = index;
         }
         return rs;
       }
@@ -1136,7 +1136,6 @@ function getUpdateProcessor(
       let oldPid = row[parentKeyField];
       let newPid = rowData[parentKeyField];
       if (oldPid !== newPid) {
-
         let newParentRow: any = findTreeNode(
           crud.table.data,
           (node) => node[crud.table.rowKey] === newPid
@@ -1157,11 +1156,11 @@ function getUpdateProcessor(
               newParentRow[childrenKeyField])
           : crud.table.data;
         if (pos == "head") {
-          insert(container, 0, row);
+          container.unshift(row);
         } else {
-          append(container, row);
+          container.push(row);
         }
-      }//over move
+      } //over move
     }
 
     innerUpdater(row, rowData);
@@ -1199,9 +1198,9 @@ function getAddProcessor(
     }
 
     if (pos == "head") {
-      insert(container, 0, ...datas);
+      container.unshift(...datas);
     } else {
-      append(container, ...datas);
+      container.push(...datas);
     }
   };
 }
@@ -1238,9 +1237,9 @@ function getCopyProcessor(
     each(childParentMap, (container, cid) => {
       let record = find(datas, (data) => data[crud.table.rowKey] == cid);
       if (pos == "head") {
-        insert(container, 0, record);
+        container.unshift(record!);
       } else {
-        append(container, record);
+        container.push(record!);
       }
     });
   };
