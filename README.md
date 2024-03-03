@@ -165,7 +165,8 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
 ```
 
 ## Cruda API
-### VM
+### Props
+
 - view ✅
   > Display switch of Components
   >
@@ -283,7 +284,7 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
 - getContext()
   > Return the context of the crud 
 
-### HOOKs
+### Hooks
 
 - BEFORE_QUERY(crud,params,orders,cancel) _**async**_
   > Emit before query. Can modify the params before request send. Cancellable, if be cancelled the `AFTER_QUERY` will not emit

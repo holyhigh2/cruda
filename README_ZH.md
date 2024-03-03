@@ -285,7 +285,7 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
 - getContext()
   > 获取crud实例所在的上下文
 
-### HOOKs
+### Hooks
 
 - BEFORE_QUERY(crud,params,orders,cancel) _**async**_
   > 查询前回调，可以修改请求参数(params)，比如分页名称等，可取消。取消后不会触发 AFTER_QUERY  

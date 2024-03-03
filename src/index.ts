@@ -388,7 +388,7 @@ class CRUD {
   snapshots: Record<string, any> = {};
 
   constructor(restURL: string | RestUrl, key?: string) {
-    let url,defaultQuery,restApi
+    let url, defaultQuery, restApi;
     if (isObject(restURL)) {
       const p = restURL;
       url = p.url;
@@ -1105,22 +1105,66 @@ function getDeleteProcessor(crud: CRUD, ids: string[]) {
 }
 function getUpdateProcessor(
   crud: CRUD,
-  data: Record<string, any>,
+  rowData: Record<string, any>,
   response: unknown
 ) {
   return () => {
+    let oldParentRow: any;
+    let rowIndex:number = -1;
     let row: any = findTreeNode(
       crud.table.data,
-      (node) => node[crud.table.rowKey] === data[crud.table.rowKey]
+      (node,parentNode,chain,level,index) => {
+        let rs = node[crud.table.rowKey] === rowData[crud.table.rowKey]
+        if(rs){
+          oldParentRow = parentNode;
+          rowIndex = index
+        }
+        return rs;
+      }
     );
     if (crud.autoResponse.getter) {
-      let datas = crud.autoResponse.getter(response, [data]);
+      let datas = crud.autoResponse.getter(response, [rowData]);
       if (isObject(get(datas, 0))) {
-        data = get(datas, 0);
+        rowData = get(datas, 0);
       }
     }
 
-    innerUpdater(row, data);
+    let parentKeyField = crud.autoResponse.parentKeyField;
+
+    //tree
+    if (parentKeyField) {
+      let oldPid = row[parentKeyField];
+      let newPid = rowData[parentKeyField];
+      if (oldPid !== newPid) {
+
+        let newParentRow: any = findTreeNode(
+          crud.table.data,
+          (node) => node[crud.table.rowKey] === newPid
+        );
+
+        const childrenKeyField = crud.autoResponse.childrenKeyField;
+        //remove from old
+        let container = oldPid
+          ? oldParentRow[childrenKeyField]
+          : crud.table.data;
+        container.splice(rowIndex, 1);
+
+        //insert into new
+        let pos = crud.autoResponse.position;
+        container = newPid
+          ? newParentRow[childrenKeyField] ||
+            (!(innerUpdater(newParentRow, { [childrenKeyField]: [] }) as any) &&
+              newParentRow[childrenKeyField])
+          : crud.table.data;
+        if (pos == "head") {
+          insert(container, 0, row);
+        } else {
+          append(container, row);
+        }
+      }//over move
+    }
+
+    innerUpdater(row, rowData);
   };
 }
 function getAddProcessor(
