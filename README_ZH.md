@@ -168,7 +168,7 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
 ## Cruda API
 ### Props
 
-- view ✅
+- view ✅⚡
   > 业务组件通过 view 来控制 UI
   >
   > - opQuery 查询(框/按钮/..)开关

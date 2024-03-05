@@ -22,6 +22,7 @@ export interface RestUrl {
    * 自动响应实例配置
    */
   autoResponse?: AutoResponse;
+  view?:Record<string, boolean>;
   [param: string]: unknown;
 }
 

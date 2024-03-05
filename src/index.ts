@@ -393,12 +393,24 @@ class CRUD {
       const p = restURL;
       url = p.url;
       this.params = Object.freeze(p);
+      //autoResponse
       if (p.autoResponse) {
         assign(this.autoResponse, p.autoResponse);
       }
+      //invalidBreak
       this._invalidBreak = p.invalidBreak;
+      //recoverable
+      this._recoverable = p.recoverable;
+      //defaultQuery
       defaultQuery = p.defaultQuery;
+      //restApi
       restApi = p.restApi;
+      //view
+      if(p.view){
+        each(p.view,(v,k:string)=>{
+          this.view[k] = v
+        })
+      }
     } else {
       url = restURL;
     }

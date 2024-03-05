@@ -167,7 +167,7 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
 ## Cruda API
 ### Props
 
-- view ✅
+- view ✅⚡
   > Display switch of Components
   >
   > - opQuery
