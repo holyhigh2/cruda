@@ -388,7 +388,7 @@ class CRUD {
   snapshots: Record<string, any> = {};
 
   constructor(restURL: string | RestUrl, key?: string) {
-    let url, defaultQuery, restApi;
+    let url, defaultQuery, restApi, view: Record<string, boolean | undefined> = {};
     if (isObject(restURL)) {
       const p = restURL;
       url = p.url;
@@ -407,9 +407,7 @@ class CRUD {
       restApi = p.restApi;
       //view
       if(p.view){
-        each(p.view,(v,k:string)=>{
-          this.view[k] = v
-        })
+        view = p.view
       }
     } else {
       url = restURL;
@@ -451,7 +449,7 @@ class CRUD {
         set: partial(viewSetter, undefined, prop, this.view),
         get: partial(viewGetter, prop, this.view),
       };
-      this.view["_" + prop] = undefined;
+      this.view["_" + prop] = view[prop] || undefined;
     });
     Object.defineProperties(this.view, viewProps as PropertyDescriptorMap);
 
