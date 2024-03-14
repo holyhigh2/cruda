@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.11.0] - 2024/3/14
+### Add
+- Pagination - frontend
+
 ## [1.10.0] - 2024/2/26
 ### Add
 - RestUrl - defaultQuery/restApi/invalidBreak/recoverable/autoResponse

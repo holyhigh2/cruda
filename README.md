@@ -135,7 +135,7 @@ onHook(this,CRUD.HOOK.AFTER_CLONE,(crud,rs)=>{
 this.$crud.toClone({x:1,y:2});
 ```
 ### 10. Auto Response (v1.8+)
-We can config `autoResponse` to refresh table view automatically, this could help you to avoid losing page state if you `reload()` the page after add/update/delete/copy submition before. A typical case is you may lost all hierarchies of TreeTable you opened before when you `reload()`.Below is the config
+We can config `autoResponse` to refresh the table view automatically, this could help you to avoid losing the page state if you `reload()` the page after add/update/delete/copy submition before. A typical case is you may lose all hierarchies of TreeTable you opened before when you `reload()`. Below is the config
 ```ts
 //1. Set a response validator to check if the response is valid
 $crud.autoResponse.validator = (response:{status:number})=>{
@@ -156,13 +156,39 @@ CRUD.defaults.autoResponse.position = 'head'
 //4. For TreeTable, you need set childrenKeyField in order to find childNodes. Default 'children'
 CRUD.defaults.autoResponse.childrenKeyField = 'children'
 ```
-After that, the table view will refreshed by CRUDA. And if you want to refresh manually you can call `autoProcess()` in the hook below
+After that, the table view will refreshed by CRUDA. If you want to refresh manually you can call `autoProcess()` in the hook below
 ```ts
 // Other hooks which can invode autoProcess please see the doc below 
 onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
   autoProcess()
 })
 ```
+### 11. Frontend Pagination (v1.11+)
+We can config `pagination.frontend` to enable the frontend pagination
+```ts
+useCrud({
+  ...
+  pagination:{
+    //enable
+    frontend:true,
+    frontWrapper(data,total){
+      return {
+        data:{
+          rows:data,
+          total
+        }
+      }
+    }
+  },
+  autoResponse:{
+    //extract page rows from response of the backend
+    getter(rs){
+      return rs.data.rows
+    }
+  }
+})
+```
+After enabling frontend pagination the method `toQuery` no longer requests the backend, use `reload` instead
 
 ## Cruda API
 ### Props
@@ -202,12 +228,14 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
   > - allColumns 
   > - orders 
   > - rowKey✅
-- pagination
+- pagination⚡
   > Pagination container
   >
   > - pageSize✅ 
   > - currentPage 
   > - total 
+  > - frontend 
+  > - frontWrapper✅ 
 - form
   > Form data container
 - formStatus
@@ -238,7 +266,7 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
 ### Methods
 
 - toQuery(query?: Record<string, any>) : Promise
-  > Instance query. Send GET request to the backend。The argument 'query' will [merge](https://holyhigh2.github.io/func.js/api/modules/object#merge) with the $crud.query
+  > (When `frontend` is false) Instance query. Send GET request to the backend。The argument 'query' will [merge](https://holyhigh2.github.io/func.js/api/modules/object#merge) with the $crud.query
 - toDelete(rows: Record<string, unknown> | Record<string, unknown>[]) : Promise
   > Instance del. Send DELETE request to the backend
 - toExport() : Promise

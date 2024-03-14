@@ -23,7 +23,8 @@ export interface RestUrl {
    */
   autoResponse?: AutoResponse;
   view?:Record<string, boolean>;
-  [param: string]: unknown;
+  pagination?:Pagination;
+  [param: string]: any;
 }
 
 export interface CRUDError {
@@ -34,19 +35,21 @@ export interface CRUDError {
 }
 
 export interface Pagination {
-  pageSize: number;
-  currentPage: number;
-  total: number;
-  [propName: string]: number;
+  pageSize?: number;
+  currentPage?: number;
+  total?: number;
+  frontend?: boolean;
+  frontWrapper?:(data:Record<string,any>[],total:number)=>any
+  [propName: string]: any;
 }
 
 export type AutoResponseGetter = (response: any,submitData?:any[]) => Record<string,any>[]
 
 export interface AutoResponse{
-  position:'head'|'tail',
-  validator:(response: any) => boolean,
+  position?:'head'|'tail',
+  validator?:(response: any) => boolean,
   getter?:AutoResponseGetter;
   parentKeyField?:string;
-  childrenKeyField:string;
+  childrenKeyField?:string;
   [propName: string]: any;
 }

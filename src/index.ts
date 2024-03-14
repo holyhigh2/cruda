@@ -167,6 +167,7 @@ class CRUD {
       pageSize: 0,
       currentPage: 1,
       total: 0,
+      frontend: false,
     },
     table: {
       rowKey: "",
@@ -288,21 +289,7 @@ class CRUD {
     allColumns: [], // 表格所有列，用于动态展示
     orders: [], // 排序列表
   };
-  pagination: Pagination = {
-    _pageSize: 0,
-    set pageSize(v: number) {
-      this._pageSize = v;
-    },
-    // 1. 如果CRUD实例设置了pageSize，以实例为准
-    // 2. 如果实例值不合法取defaults
-    get pageSize(): number {
-      const ps = this._pageSize;
-      if (ps > 0) return ps;
-      return CRUD.defaults.pagination.pageSize || 15;
-    },
-    currentPage: 1,
-    total: 0,
-  };
+  pagination: Pagination;
   sortation = {}; //排序对象
   formStatus: number = 0; // 1：新增；2：编辑；3：查看。适用于组合弹窗或细分弹窗
   form: Record<string, any> = {};
@@ -345,7 +332,7 @@ class CRUD {
     get position(): "head" | "tail" {
       const ps = this._position;
       if (ps) return ps;
-      return CRUD.defaults.autoResponse.position;
+      return CRUD.defaults.autoResponse.position || "head";
     },
     _validator: undefined,
     set validator(v: (response: any) => boolean) {
@@ -354,7 +341,7 @@ class CRUD {
     get validator(): (response: any) => boolean {
       const ps = this._validator;
       if (ps) return ps;
-      return CRUD.defaults.autoResponse.validator;
+      return CRUD.defaults.autoResponse.validator || (() => false);
     },
     _getter: undefined,
     set getter(v: undefined | AutoResponseGetter) {
@@ -372,7 +359,7 @@ class CRUD {
     get childrenKeyField(): string {
       const ps = this._childrenKeyField;
       if (ps) return ps;
-      return CRUD.defaults.autoResponse.childrenKeyField;
+      return CRUD.defaults.autoResponse.childrenKeyField || "children";
     },
     _parentKeyField: undefined,
     set parentKeyField(v: string) {
@@ -388,7 +375,11 @@ class CRUD {
   snapshots: Record<string, any> = {};
 
   constructor(restURL: string | RestUrl, key?: string) {
-    let url, defaultQuery, restApi, view: Record<string, boolean | undefined> = {};
+    let url,
+      defaultQuery,
+      restApi,
+      view: Record<string, boolean | undefined> = {},
+      pagination: Pagination = {};
     if (isObject(restURL)) {
       const p = restURL;
       url = p.url;
@@ -406,15 +397,62 @@ class CRUD {
       //restApi
       restApi = p.restApi;
       //view
-      if(p.view){
-        view = p.view
+      if (p.view) {
+        view = p.view;
       }
+      pagination = p.pagination || {};
     } else {
       url = restURL;
     }
     if (!trim(url)) {
       throw new Error("The URL can not be empty");
     }
+
+    this.pagination = Object.defineProperties(
+      {
+        currentPage: pagination.currentPage || 1,
+        total: pagination.total || 0,
+        frontend: pagination.frontend || false,
+        pageSize: pagination.pageSize || -1,
+      },
+      {
+        _pageSize: {
+          value: 0,
+          configurable: false,
+          writable: true,
+        },
+        pageSize: {
+          set(v: number) {
+            this._pageSize = v;
+          },
+          // 1. 如果CRUD实例设置了pageSize，以实例为准
+          // 2. 如果实例值不合法取defaults
+          get(): number {
+            const ps = this._pageSize;
+            if (ps > 0) return ps;
+            return CRUD.defaults.pagination.pageSize || 15;
+          },
+        },
+        _frontList: {
+          value: null,
+          configurable: false,
+          writable: true,
+        },
+        _frontWrapper:{
+          value: pagination.frontWrapper,
+          configurable: false,
+          writable: true,
+        },
+        frontWrapper: {
+          set(v: (data:Record<string,any>[],total:number)=>any) {
+            this._frontWrapper = v;
+          },
+          get(): (data:Record<string,any>[],total:number)=>any {
+            return this._frontWrapper || CRUD.defaults.pagination.frontWrapper;
+          },
+        },
+      }
+    );
 
     Object.defineProperties(this, {
       url: {
@@ -974,11 +1012,6 @@ class CRUD {
     return this._submit(2, ...args);
   }
 
-  // 刷新页面，适用于查询条件变更后需要重新加载的场景
-  reload(params?: Record<string, unknown>): Promise<unknown> {
-    this.pagination.currentPage = 1;
-    return this.toQuery(params);
-  }
   // 查询row详情
   getDetails(id: string, params: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
@@ -988,14 +1021,47 @@ class CRUD {
     });
   }
 
+  // 刷新页面，适用于查询条件变更后需要重新加载的场景
+  reload(params?: Record<string, unknown>): Promise<unknown> {
+    this.pagination.currentPage = 1;
+    this.pagination._frontList = null;
+    return this.toQuery(params);
+  }
+
   //actions
   // 执行查询操作
-  private doQuery(params?: Record<string, unknown>): Promise<unknown> {
-    return CRUD.request({
-      url: getRestUrl(this, "QUERY", CRUD.RESTAPI.QUERY.url),
-      method: getRestMethod(this, "QUERY", CRUD.RESTAPI.QUERY.method),
-      params,
-    });
+  private async doQuery(params?: Record<string, unknown>): Promise<unknown> {
+    const reload = !this.pagination.frontend || !this.pagination._frontList;
+    let rs = reload
+      ? await CRUD.request({
+          url: getRestUrl(this, "QUERY", CRUD.RESTAPI.QUERY.url),
+          method: getRestMethod(this, "QUERY", CRUD.RESTAPI.QUERY.method),
+          params,
+        })
+      : null;
+    if (rs && this.pagination.frontend) {
+      if (!this.autoResponse.getter) {
+        crudWarn(`autoResponse.getter is missing`, "- doQuery()");
+        return;
+      }
+      this.pagination._frontList = this.autoResponse.getter(rs);
+    }
+
+    if (this.pagination.frontend) {
+      let currentPage = this.pagination.currentPage;
+      let pageSize = this.pagination.pageSize;
+      rs = this.pagination._frontList.slice(
+        (currentPage! - 1) * pageSize!,
+        currentPage! * pageSize!
+      );
+      if (this.pagination.frontWrapper) {
+        rs = this.pagination.frontWrapper(
+          rs,
+          this.pagination._frontList.length
+        );
+      }
+    }
+    return rs;
   }
 
   // 执行新增操作
@@ -1081,7 +1147,7 @@ class CRUD {
 
 ////////////////////////// auto response
 function autoProcess(response: unknown, crud: CRUD, processor: Function) {
-  if (crud.autoResponse.validator(response)) {
+  if (crud.autoResponse.validator!(response)) {
     processor();
   }
 }
@@ -1096,7 +1162,7 @@ function getDeleteProcessor(crud: CRUD, ids: string[]) {
         let hit = includes(ids, cid);
         if (hit) {
           childParentMap[cid] = parentNode
-            ? parentNode[crud.autoResponse.childrenKeyField]
+            ? parentNode[crud.autoResponse.childrenKeyField!]
             : crud.table.data;
         }
         return hit;
@@ -1151,7 +1217,7 @@ function getUpdateProcessor(
           (node) => node[crud.table.rowKey] === newPid
         );
 
-        const childrenKeyField = crud.autoResponse.childrenKeyField;
+        const childrenKeyField = crud.autoResponse.childrenKeyField!;
         //remove from old
         let container = oldPid
           ? oldParentRow[childrenKeyField]
@@ -1199,10 +1265,11 @@ function getAddProcessor(
         (node) => node[crud.table.rowKey] === parentId
       );
       if (parentRow) {
-        container = parentRow[crud.autoResponse.childrenKeyField];
+        const childrenKeyField = crud.autoResponse.childrenKeyField!;
+        container = parentRow[childrenKeyField];
         if (!container) {
-          innerUpdater(parentRow, { [crud.autoResponse.childrenKeyField]: [] });
-          container = parentRow[crud.autoResponse.childrenKeyField];
+          innerUpdater(parentRow, { [childrenKeyField]: [] });
+          container = parentRow[childrenKeyField];
         }
       }
     }
@@ -1236,7 +1303,7 @@ function getCopyProcessor(
         let hit = includes(ids, cid);
         if (hit) {
           childParentMap[cid] = parentNode
-            ? parentNode[crud.autoResponse.childrenKeyField]
+            ? parentNode[crud.autoResponse.childrenKeyField!]
             : crud.table.data;
         }
         return hit;

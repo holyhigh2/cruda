@@ -163,7 +163,33 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
   autoProcess()
 })
 ```
-
+### 11. 前端分页 (v1.11+)
+通过配置`pagination.frontend`参数可以开启前端分页，cruda会自动处理列表切片同时非查询的钩子处理逻辑保持不变
+```ts
+useCrud({
+  ...
+  pagination:{
+    //开启前端分页
+    frontend:true,
+    //包装切片后的前端列表与后台返回数据格式一致，如果不指定该函数则 AFTER_QUERY 钩子的回调参数变为切片数组
+    frontWrapper(data,total){
+      return {
+        data:{
+          rows:data,
+          total
+        }
+      }
+    }
+  },
+  autoResponse:{
+    //设置分页列表获取函数
+    getter(rs){
+      return rs.data.rows
+    }
+  }
+})
+```
+开启前端分页后`toQuery`方法不会调用后台接口，如果要刷新数据可使用`reload`方法
 
 ## Cruda API
 ### Props
@@ -203,12 +229,14 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
   > - allColumns 表格所有列，用于动态展示
   > - orders 排序列表，会传递给 GET 请求
   > - rowKey✅ 表格行的 id key，默认为'id'。通常由适配器自动设置
-- pagination
+- pagination⚡
   > 分页容器托管当前 crud 实例的列表分页状态
   >
   > - pageSize✅ 每页记录数
   > - currentPage 当前页号
   > - total 总记录数
+  > - frontend 是否前端分页
+  > - frontWrapper✅ 前端分页包装器
 - form
   > 表单容器托管当前 crud 实例的表单数据
 - formStatus
@@ -239,7 +267,7 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
 ### Methods
 
 - toQuery(query?: Record<string, any>) : Promise
-  > 启动 crud 实例的查询。向指定 REST 地址发送 GET 请求。query参数会与$crud.query进行[merge](https://holyhigh2.github.io/func.js/api/modules/object#merge)但不会修改$crud.query
+  > (未开启前端分页时) 启动 crud 实例的查询。向指定 REST 地址发送 GET 请求。query参数会与$crud.query进行[merge](https://holyhigh2.github.io/func.js/api/modules/object#merge)但不会修改$crud.query
 - toDelete(rows: Record<string, unknown> | Record<string, unknown>[]) : Promise
   > 启动 crud 实例的删除。向指定 REST 地址发送 DELETE _**(默认)**_ 请求
 - toExport() : Promise
