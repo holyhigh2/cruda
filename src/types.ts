@@ -24,6 +24,7 @@ export interface RestUrl {
   autoResponse?: AutoResponse;
   view?:Record<string, boolean>;
   pagination?:Pagination;
+  cache?:boolean;
   [param: string]: any;
 }
 
@@ -39,7 +40,6 @@ export interface Pagination {
   currentPage?: number;
   total?: number;
   frontend?: boolean;
-  frontWrapper?:(data:Record<string,any>[],total:number)=>any
   [propName: string]: any;
 }
 

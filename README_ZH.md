@@ -169,27 +169,35 @@ onHook(CRUD.HOOK.AFTER_DELETE,(crud,rs,rows,autoProcess)=>{
 useCrud({
   ...
   pagination:{
-    //开启前端分页
-    frontend:true,
-    //包装切片后的前端列表与后台返回数据格式一致，如果不指定该函数则 AFTER_QUERY 钩子的回调参数变为切片数组
-    frontWrapper(data,total){
-      return {
-        data:{
-          rows:data,
-          total
-        }
-      }
-    }
-  },
-  autoResponse:{
-    //设置分页列表获取函数
-    getter(rs){
-      return rs.data.rows
-    }
+    //在实例页面开启前端分页
+    frontend:true
   }
 })
+//设置全局默认钩子【可选】。如果没有钩子，默认缓存整个rs
+CRUD.defaults[CRUD.HOOK.BEFORE_CACHE] = function (crud, rs, cache) {
+  //缓存结果集
+  cache({
+    data:{
+      rows:rs.data.rows,
+      total:rs.data.total
+    }
+  })
+}
+CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端分页后，rs表示缓存数据 */, params, slice) {
+  //过滤缓存结果
+  const keyword = params.keyword
+  let list = filter(defaultTo(rs.data.rows, []),(item:any)=>{
+    return test(item.email, keyword) ||
+    test(item.uname, keyword) ||
+    test(item.ip, keyword) ||
+    test(item.domain, keyword)
+  })
+  crud.pagination.total = defaultTo(list.length, 0);
+  //使用slice自动切片，如果未开启前端分页，slice函数直接返回list
+  crud.table.data = slice(list);
+}
 ```
-开启前端分页后`toQuery`方法不会调用后台接口，如果要刷新数据可使用`reload`方法
+开启前端分页后`toQuery/reload`方法都不会请求后台接口，如需要刷新数据可使用`reset`方法
 
 ## Cruda API
 ### Props
@@ -236,7 +244,6 @@ useCrud({
   > - currentPage 当前页号
   > - total 总记录数
   > - frontend 是否前端分页
-  > - frontWrapper✅ 前端分页包装器
 - form
   > 表单容器托管当前 crud 实例的表单数据
 - formStatus
@@ -261,6 +268,8 @@ useCrud({
   > 默认查询参数，GET请求时自动合并到请求参数中
 - restApi⚡
   > 实例api，可覆盖 `8. RESTAPI`
+- cache⚡
+  > 开启查询缓存，开启后可通过`BEFORE_CACHE`钩子定制缓存或使用默认的后台返回结果。当`pagination.frontend`开启时该属性自动开启
 
 ✅ **_表示支持全局默认值_**  ⚡ **_表示支持对象激活参数_**
 
@@ -312,14 +321,16 @@ useCrud({
   > 用在 table 的 sort-change 事件，会自动管理排序信息并触发查询
 - getContext()
   > 获取crud实例所在的上下文
+- reset(query?: Record<string, any>) : Promise
+  > 清除缓存并执行一次 reload()
 
 ### Hooks
 
 - BEFORE_QUERY(crud,params,orders,cancel) _**async**_
   > 查询前回调，可以修改请求参数(params)，比如分页名称等，可取消。取消后不会触发 AFTER_QUERY  
   > **注意** ,params 为提交接口的实际对象（包含 query、pagination)，此处修改 crud.query/pagination 的内容不会提交到接口
-- AFTER_QUERY(crud,rs) _**async**_
-  > 查询后回调，可以获取查询结果，设置表格
+- AFTER_QUERY(crud,rs,params,slice) _**async**_
+  > 查询后回调，可以获取查询结果，设置表格。如果开启前端分页则可使用params过滤列表并通过`slice(rows)`函数进行自动切片
 - BEFORE_DELETE(crud,rows,cancel) _**async**_
   > 删除前调用，可取消。取消后不会触发 AFTER_DELETE
 - AFTER_DELETE(crud,rs,rows,autoProcess) _**async**_
@@ -369,6 +380,8 @@ useCrud({
   > 调用submitForm时触发
 - BEFORE_RECOVER(crud,cancel,snapshot) _**async**_
   > 恢复快照前调用
+- BEFORE_CACHE(crud,rs,cache) _**async**_
+  > 开启cache并完成首次后台请求后调用。`cache(data)` 用来定制缓存数据
 
 ## 错误信息
 

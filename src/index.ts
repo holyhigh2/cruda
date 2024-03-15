@@ -137,6 +137,7 @@ class CRUD {
     ON_VALIDATE: "CRUD_ON_VALIDATE", // 表单校验时触发
 
     BEFORE_RECOVER: "CRUD_BEFORE_RECOVER", //恢复前触发，如果recoverable开启
+    BEFORE_CACHE: "CRUD_BEFORE_CACHE", //AFTER_QUERY前触发
   };
   // REST APIs
   static RESTAPI = {
@@ -303,6 +304,11 @@ class CRUD {
    * 当启用多实例时的key
    */
   key: string;
+  /**
+   * 查询缓存
+   */
+  cache: boolean = false;
+  private _cacheData: any;
   //校验中断
   private _invalidBreak: boolean | undefined = undefined;
   set invalidBreak(v: boolean) {
@@ -400,7 +406,11 @@ class CRUD {
       if (p.view) {
         view = p.view;
       }
+      this.cache = p.cache || false;
       pagination = p.pagination || {};
+      if (p.pagination?.frontend) {
+        this.cache = true;
+      }
     } else {
       url = restURL;
     }
@@ -431,24 +441,6 @@ class CRUD {
             const ps = this._pageSize;
             if (ps > 0) return ps;
             return CRUD.defaults.pagination.pageSize || 15;
-          },
-        },
-        _frontList: {
-          value: null,
-          configurable: false,
-          writable: true,
-        },
-        _frontWrapper:{
-          value: pagination.frontWrapper,
-          configurable: false,
-          writable: true,
-        },
-        frontWrapper: {
-          set(v: (data:Record<string,any>[],total:number)=>any) {
-            this._frontWrapper = v;
-          },
-          get(): (data:Record<string,any>[],total:number)=>any {
-            return this._frontWrapper || CRUD.defaults.pagination.frontWrapper;
           },
         },
       }
@@ -569,12 +561,26 @@ class CRUD {
 
     this.loading.query = this.loading.table = true;
 
-    let rs;
+    let rs: any;
     let error;
     try {
-      rs = await this.doQuery(params);
+      rs = this._cacheData || (await this.doQuery(params));
 
-      await callHook(CRUD.HOOK.AFTER_QUERY, this, rs);
+      if ((this.cache || this.pagination.frontend) && !this._cacheData) {
+        this._cacheData = rs;
+        await callHook(CRUD.HOOK.BEFORE_CACHE, this, rs, (cacheData: any) => {
+          this._cacheData = cacheData || rs;
+        });
+        rs = this._cacheData;
+      }
+
+      await callHook(
+        CRUD.HOOK.AFTER_QUERY,
+        this,
+        rs,
+        params,
+        (list: Record<string, any>[]) => sliceList(list, this.pagination)
+      );
       this.loading.query = this.loading.table = false;
     } catch (e) {
       this.loading.query = this.loading.table = false;
@@ -1024,44 +1030,22 @@ class CRUD {
   // 刷新页面，适用于查询条件变更后需要重新加载的场景
   reload(params?: Record<string, unknown>): Promise<unknown> {
     this.pagination.currentPage = 1;
-    this.pagination._frontList = null;
     return this.toQuery(params);
+  }
+  //清除缓存并重新查询
+  reset(params?: Record<string, unknown>): Promise<unknown> {
+    this._cacheData = null;
+    return this.reload(params);
   }
 
   //actions
   // 执行查询操作
   private async doQuery(params?: Record<string, unknown>): Promise<unknown> {
-    const reload = !this.pagination.frontend || !this.pagination._frontList;
-    let rs = reload
-      ? await CRUD.request({
-          url: getRestUrl(this, "QUERY", CRUD.RESTAPI.QUERY.url),
-          method: getRestMethod(this, "QUERY", CRUD.RESTAPI.QUERY.method),
-          params,
-        })
-      : null;
-    if (rs && this.pagination.frontend) {
-      if (!this.autoResponse.getter) {
-        crudWarn(`autoResponse.getter is missing`, "- doQuery()");
-        return;
-      }
-      this.pagination._frontList = this.autoResponse.getter(rs);
-    }
-
-    if (this.pagination.frontend) {
-      let currentPage = this.pagination.currentPage;
-      let pageSize = this.pagination.pageSize;
-      rs = this.pagination._frontList.slice(
-        (currentPage! - 1) * pageSize!,
-        currentPage! * pageSize!
-      );
-      if (this.pagination.frontWrapper) {
-        rs = this.pagination.frontWrapper(
-          rs,
-          this.pagination._frontList.length
-        );
-      }
-    }
-    return rs;
+    return CRUD.request({
+      url: getRestUrl(this, "QUERY", CRUD.RESTAPI.QUERY.url),
+      method: getRestMethod(this, "QUERY", CRUD.RESTAPI.QUERY.method),
+      params,
+    });
   }
 
   // 执行新增操作
@@ -1143,6 +1127,14 @@ class CRUD {
       data,
     });
   }
+}
+
+function sliceList(list: Record<string, any>[], pagination: Pagination) {
+  if (!pagination.frontend) return list;
+
+  let currentPage = pagination.currentPage;
+  let pageSize = pagination.pageSize;
+  return list.slice((currentPage! - 1) * pageSize!, currentPage! * pageSize!);
 }
 
 ////////////////////////// auto response

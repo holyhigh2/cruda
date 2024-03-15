@@ -3,6 +3,9 @@
 ## [1.11.0] - 2024/3/14
 ### Add
 - Pagination - frontend
+- Hooks - BEFORE_CACHE
+### Change
+- Hooks - extra paramter `params,slice` in AFTER_QUERY
 
 ## [1.10.0] - 2024/2/26
 ### Add

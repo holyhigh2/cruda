@@ -171,24 +171,33 @@ useCrud({
   pagination:{
     //enable
     frontend:true,
-    frontWrapper(data,total){
-      return {
-        data:{
-          rows:data,
-          total
-        }
-      }
-    }
-  },
-  autoResponse:{
-    //extract page rows from response of the backend
-    getter(rs){
-      return rs.data.rows
-    }
   }
 })
+//Set global cache hook(Optional)
+CRUD.defaults[CRUD.HOOK.BEFORE_CACHE] = function (crud, rs, cache) {
+  //cache custom data
+  cache({
+    data:{
+      rows:rs.data.rows,
+      total:rs.data.total
+    }
+  })
+}
+CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs, params, slice) {
+  //filter cache data
+  const keyword = params.keyword
+  let list = filter(defaultTo(rs.data.rows, []),(item:any)=>{
+    return test(item.email, keyword) ||
+    test(item.uname, keyword) ||
+    test(item.ip, keyword) ||
+    test(item.domain, keyword)
+  })
+  crud.pagination.total = defaultTo(list.length, 0);
+  //use slice() to slice list. If pagination.frontend is disabled, slice() will return the list directly 
+  crud.table.data = slice(list);
+}
 ```
-After enabling frontend pagination the method `toQuery` no longer requests the backend, use `reload` instead
+After enabling pagination.frontend the method `toQuery/reload` no longer requests the backend, use `reset` instead
 
 ## Cruda API
 ### Props
@@ -235,7 +244,6 @@ After enabling frontend pagination the method `toQuery` no longer requests the b
   > - currentPage 
   > - total 
   > - frontend 
-  > - frontWrapper✅ 
 - form
   > Form data container
 - formStatus
@@ -260,6 +268,8 @@ After enabling frontend pagination the method `toQuery` no longer requests the b
   > Will merge into the GET request
 - restApi⚡
   > Instance api that will recover the `8. RESTAPI`
+- cache⚡
+  > Enable query cache and custom cache data by hook `BEFORE_CACHE` or use default backend response as the cache data. This prop will be true if `pagination.frontend` is enabled.
 
 ✅ **_Indicates that global defaults are supported_** ⚡ **_Indicates that activation in object form is supported_**
 
@@ -311,13 +321,15 @@ After enabling frontend pagination the method `toQuery` no longer requests the b
   > Usually used in table sort event like `sort-change` in `element-ui`, it will call `toQuery()` automatically
 - getContext()
   > Return the context of the crud 
+- reset(query?: Record<string, any>) : Promise
+  > Clear cache data and call reload()
 
 ### Hooks
 
 - BEFORE_QUERY(crud,params,orders,cancel) _**async**_
   > Emit before query. Can modify the params before request send. Cancellable, if be cancelled the `AFTER_QUERY` will not emit
-- AFTER_QUERY(crud,rs) _**async**_
-  > Emit after query. Can set table data by 'rs'
+- AFTER_QUERY(crud,rs,params,slice) _**async**_
+  > Emit after query. Can set table data by 'rs'. If `pagination.frontend` is enabled, params and slice() can be used to filter and slice cache data
 - BEFORE_DELETE(crud,rows,cancel) _**async**_
   > Emit before delete. Cancellable, if be cancelled the `AFTER_DELETE` will not emit
 - AFTER_DELETE(crud,rs,rows,autoProcess) _**async**_
@@ -366,7 +378,8 @@ After enabling frontend pagination the method `toQuery` no longer requests the b
   > Emit after submitForm() be called
 - BEFORE_RECOVER(crud,cancel,snapshot) _**async**_
   > Emit before recover the snapshot
-
+- BEFORE_CACHE(crud,rs,cache) _**async**_
+  > Emit after query and `cache` is enabled. Use `cache(data)` to custom the cache data
 
 ## Errors
 
