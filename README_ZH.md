@@ -287,7 +287,7 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   > 设置 form 状态为新增。
 - toEdit(row) : Promise
   > 设置 form 状态为编辑。向指定 REST 地址发送 GET _**(默认)**_ 请求
-- toView(row) : Promise
+- toView(row?: Record<string, any>) : Promise
   > 设置 form 状态为查看。向指定 REST 地址发送 GET _**(默认)**_ 请求
 - toSort() : Promise
   > 启动 crud 实例的排序。向指定 REST 地址发送 PUT _**(默认)**_ 请求

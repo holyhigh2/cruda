@@ -3,30 +3,30 @@
  * 提供基于RESTapi方式的CRUD操作及数据托管
  * @author holyhigh
  */
-import { map, each, find, filter, includes } from "myfx/collection";
 import { findIndex, remove } from "myfx/array";
+import { each, filter, find, includes, map } from "myfx/collection";
 import { partial } from "myfx/function";
-import { startsWith, trim, upperCase, upperFirst } from "myfx/string";
-import { uuid } from "myfx/utils";
 import {
   isArray,
-  isUndefined,
-  isObject,
-  isFunction,
-  isNull,
-  isNil,
   isEmpty,
+  isFunction,
+  isNil,
+  isNull,
+  isObject,
+  isUndefined,
 } from "myfx/is";
-import { merge, get, set, keys, assign } from "myfx/object";
+import { assign, get, keys, merge, set } from "myfx/object";
+import { startsWith, trim, upperCase, upperFirst } from "myfx/string";
+import { uuid } from "myfx/utils";
 
+import { findTreeNode, findTreeNodes } from "myfx";
 import {
-  RestUrl,
-  CRUDError,
-  Pagination,
   AutoResponse,
   AutoResponseGetter,
+  CRUDError,
+  Pagination,
+  RestUrl,
 } from "./types";
-import { findTreeNode, findTreeNodes } from "myfx";
 
 function viewSetter(v: boolean, prop: string, bind: CRUD["view"]) {
   bind["_" + prop] = v;
@@ -827,21 +827,22 @@ class CRUD {
 
     return rs;
   }
-  async toView(row: Record<string, unknown>): Promise<unknown> {
-    let id = "-";
-    const rowKey = this.table.rowKey;
-    if (rowKey) {
-      id = row[rowKey] as string;
-    } else {
-      crudWarn(
-        `table.rowKey is a blank value [${rowKey}], it may cause an error`,
-        "- toView()"
-      );
+  async toView(row?: Record<string, unknown>): Promise<unknown> {
+    let id;
+    const params: Record<string, unknown> = {};
+    if (row) {
+      const rowKey = this.table.rowKey;
+      if (rowKey) {
+        id = row[rowKey] as string;
+      } else {
+        crudWarn(
+          `table.rowKey is a blank value [${rowKey}], it may cause an error`,
+          "- toView()"
+        );
+        id = "?";
+      }
+      params[rowKey] = id;
     }
-
-    const params = {
-      [rowKey]: id,
-    };
 
     let proceed = true;
     let queryDetails = true;
@@ -1019,9 +1020,11 @@ class CRUD {
   }
 
   // 查询row详情
-  getDetails(id: string, params: Record<string, unknown>): Promise<unknown> {
+  getDetails(id?: string, params?: Record<string, unknown>): Promise<unknown> {
     return CRUD.request({
-      url: getRestUrl(this, "QUERY", CRUD.RESTAPI.QUERY.url) + "/" + id,
+      url:
+        getRestUrl(this, "QUERY", CRUD.RESTAPI.QUERY.url) +
+        (id ? "/" + id : ""),
       method: getRestMethod(this, "QUERY", CRUD.RESTAPI.QUERY.method),
       params,
     });

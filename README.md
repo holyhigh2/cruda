@@ -287,7 +287,7 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   > Set `formStatus` to 'Add'
 - toEdit(row) : Promise
   > Set `formStatus` to 'Edit' and send GET _**(default)**_ request to the backend
-- toView(row) : Promise
+- toView(row?: Record<string, any>) : Promise
   > Set `formStatus` to 'View' and send GET _**(default)**_ request to the backend
 - toSort() : Promise
   > Instance sort. Send PUT _**(default)**_ request to the backend
