@@ -1446,6 +1446,26 @@ export function _newCruds(
   return cruds;
 }
 
+export function _add2Cruds(
+  key: string,
+  restURL: string | RestUrl,
+  context: Record<string, any>
+) {
+  const nid = context.__crud_nid_;
+  const cruds = context.__cruds_;
+  const crud = new CRUD(restURL, key);
+
+  cruds[key] = crud;
+  CONTEXT_MAP.set(crud, context);
+
+  Object.defineProperty(crud, "__crud_hid_", {
+    value: nid,
+    enumerable: false,
+    configurable: false,
+  });
+  return crud;
+}
+
 export function _onHook(
   nid: string,
   hookName: string,
