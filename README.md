@@ -96,6 +96,7 @@ You can modify the URL/Method to adapt to the backend service
 ```js
 CRUD.RESTAPI = {
   QUERY: { url: "", method: "GET" },
+  QUERY_DETAILS: { url: "/{id}", method: "GET" },//(v1.20+)
   ADD: { url: "", method: "POST" },
   UPDATE: { url: "", method: "PUT" },
   DELETE: { url: "", method: "DELETE" },
@@ -103,6 +104,7 @@ CRUD.RESTAPI = {
   IMPORT: { url: "/import", method: "POST" },
   SORT: { url: "/sort", method: "PUT" },
   COPY: { url: "/copy", method: "POST" },
+  ADD_OR_UPDATE: { url: "/addorupdate", method: "POST" },//(v1.20+)
 }
 ```
 #### Instance API (v1.9+)
@@ -207,8 +209,8 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   >
   > - opQuery
   > - opAdd 
-  > - opEdit 
-  > - opDel 
+  > - opUpdate 
+  > - opDelete 
   > - opExport 
   > - opImport
   > - opSort
@@ -247,7 +249,7 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
 - form
   > Form data container
 - formStatus
-  > form state. 0：Normal；1：Add；2：Edit；3：View
+  > form state. 0：Normal；1：Add；2：Update；3：View；4：AddOrUpdate
 - params
   > crud active params
 - error
@@ -285,8 +287,10 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   > Instance import. Use `fieldName` to specify the fileName of server request。 Send POST request to the backend
 - toAdd(...args)
   > Set `formStatus` to 'Add'
-- toEdit(row) : Promise
-  > Set `formStatus` to 'Edit' and send GET _**(default)**_ request to the backend
+- toUpdate(row) : Promise
+  > Set `formStatus` to 'Update' and send GET _**(default)**_ request to the backend
+- toAddOrUpdate(...args) : Promise
+  > Set `formStatus` to 'AddOrUpdate' and send GET _**(default)**_ request to the backend
 - toView(row?: Record<string, any>) : Promise
   > Set `formStatus` to 'View' and send GET _**(default)**_ request to the backend
 - toSort() : Promise
@@ -299,7 +303,9 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   > Pass args to `BEFORE_SUBMIT`
 - submitAdd(...args) : Promise
   > Same as `submit()` but won't check `formStatus`
-- submitEdit(...args) : Promise
+- submitUpdate(...args) : Promise
+  > Same as `submit()` but won't check`formStatus`
+- submitAddOrUpdate(...args) : Promise
   > Same as `submit()` but won't check`formStatus`
 - submitForm(form, ...args)
   > **_*Depends on adapters_**。Will validate one or more Form or CustomComponent(which has validate() method) and then call `submit()`
@@ -338,16 +344,20 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   > Emit before add. Can clear the form data or generate a UUID. Cancellable,if be cancelled the `formStatus` will not be change. *...args* from `toAdd()`
 - AFTER_ADD(crud,rs,autoProcess) _**async**_
   > Emit after add and before `AFTER_SUBMIT`. Use `autoProcess()` to update table view
-- BEFORE_EDIT(crud,row,cancel,skip) _**async**_
-  > Emit before edit. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
+- BEFORE_UPDATE(crud,row,cancel,skip) _**async**_
+  > Emit before update. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
 - AFTER_UPDATE(crud,rs,autoProcess) _**async**_
   > Emit after update and before `AFTER_SUBMIT`. Use `autoProcess()` to update table view
+- BEFORE_ADD_OR_UPDATE(crud,cancel,doView,...args) _**async**_
+  > Emit before add/update. Cancellable,if be cancelled the `formStatus` will not be change. Use `doView()` to query details 
+- AFTER_ADD_OR_UPDATE(crud,rs,autoProcess) _**async**_
+  > Emit after add/update and before `AFTER_SUBMIT`. Use `autoProcess()` to update table view
 - BEFORE_VIEW(crud,row,cancel,skip) _**async**_
   > Emit before view. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
 - AFTER_DETAILS(crud,rs) _**async**_
-  > Emit after `toEdit/toView` and is not skipped by `skip()`
-- AFTER_DETAILS_EDIT(crud,rs) _**async**_
-  > Emit after `toEdit` and `AFTER_DETAILS`
+  > Emit after `toUpdate/toView` and is not skipped by `skip()`
+- AFTER_DETAILS_UPDATE(crud,rs) _**async**_
+  > Emit after `toUpdate` and `AFTER_DETAILS`
 - AFTER_DETAILS_VIEW(crud,rs) _**async**_
   > Emit after `toView` and `AFTER_DETAILS`
 - BEFORE_SUBMIT(crud,cancel,setForm,...args) _**async**_
@@ -390,7 +400,7 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   > Rx 【check validation rules】
 - Cannot find [request] in the installation options
   > Rx 【Install】
-- table.rowKey is a blank value 'Xxx', it may cause an error - toDelete/Edit/View()
+- table.rowKey is a blank value 'Xxx', it may cause an error - toDelete/Update/View()
   > Rx 【set rowKey a non-empty value】
 
 ## Workflow

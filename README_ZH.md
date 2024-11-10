@@ -96,6 +96,7 @@ CRUD.defaults.table.rowKey = 'id'
 ```js
 CRUD.RESTAPI = {
   QUERY: { url: "", method: "GET" },
+  QUERY_DETAILS: { url: "/{id}", method: "GET" },//(v1.20+)
   ADD: { url: "", method: "POST" },
   UPDATE: { url: "", method: "PUT" },
   DELETE: { url: "", method: "DELETE" },
@@ -103,6 +104,7 @@ CRUD.RESTAPI = {
   IMPORT: { url: "/import", method: "POST" },
   SORT: { url: "/sort", method: "PUT" },
   COPY: { url: "/copy", method: "POST" },
+  ADD_OR_UPDATE: { url: "/addorupdate", method: "POST" },//(v1.20+)
 }
 ```
 #### 实例API (v1.9+)
@@ -207,8 +209,8 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   >
   > - opQuery 查询(框/按钮/..)开关
   > - opAdd 新增按钮显示开关
-  > - opEdit 编辑按钮显示开关
-  > - opDel 删除按钮显示开关
+  > - opUpdate 编辑按钮显示开关
+  > - opDelete 删除按钮显示开关
   > - opExport 导出按钮显示开关
   > - opImport 导入按钮显示开关
   > - opSort 排序按钮显示开关
@@ -247,7 +249,7 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
 - form
   > 表单容器托管当前 crud 实例的表单数据
 - formStatus
-  > 表单当前状态 0：默认；1：新增；2：编辑；3：查看
+  > 表单当前状态 0：默认；1：新增；2：更新；3：查看；4：新增或更新
 - params
   > crud 激活参数，通过对象方式构造 crud 时可以注入。可用于自定义组件中进行附加操作，比如附加 CRUD 权限控制
 - error
@@ -257,7 +259,7 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
 - key
   > 多实例下每个crud实例的标识
 - recoverable✅⚡
-  > 是否开启编辑快照，开启后会在新增/编辑时保存form快照
+  > 是否开启编辑快照，开启后会在新增/编辑/新增编辑时保存form快照
 - snapshots
   > 保存快照内容的对象，key是table.row的id。可用于在视图中显示快照状态，详见examples
 - invalidBreak✅⚡
@@ -285,8 +287,10 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   > 启动 crud 实例的导入。fieldName可指定服务端接收名称，如果为空，当file为单个对象时默认为`file`,当file为数组时默认为`files`。向指定 REST 地址发送 POST _**(默认)**_ 请求
 - toAdd(...args)
   > 设置 form 状态为新增。
-- toEdit(row) : Promise
-  > 设置 form 状态为编辑。向指定 REST 地址发送 GET _**(默认)**_ 请求
+- toUpdate(row) : Promise
+  > 设置 form 状态为更新。向指定 REST 地址发送 GET _**(默认)**_ 请求
+- toAddOrUpdate(...args) : Promise
+  > 设置 form 状态为新增或更新
 - toView(row?: Record<string, any>) : Promise
   > 设置 form 状态为查看。向指定 REST 地址发送 GET _**(默认)**_ 请求
 - toSort() : Promise
@@ -299,7 +303,9 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   > args参数会传递给 `BEFORE_SUBMIT` 并可自行实现校验逻辑
 - submitAdd(...args) : Promise
   > 同`submit()`，但不会校验`formStatus`
-- submitEdit(...args) : Promise
+- submitUpdate(...args) : Promise
+  > 同`submit()`，但不会校验`formStatus`
+- submitAddOrUpdate(...args) : Promise
   > 同`submit()`，但不会校验`formStatus`
 - submitForm(form, ...args)
   > **_*依赖适配器_**。可以对1或多个表单(或具有validate()方法的组件)进行校验，并在通过后调用`submit()`  
@@ -339,16 +345,22 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   > 新增前调用，可以用来清空表单或产生 uuid 等。可取消，取消后表单状态不变。*...args* 来自`toAdd()`
 - AFTER_ADD(crud,rs,autoProcess) _**async**_
   > 新增提交后 `AFTER_SUBMIT`前调用. `autoProcess()` 用来自动更新视图
-- BEFORE_EDIT(crud,row,cancel,skip) _**async**_
+- BEFORE_UPDATE(crud,row,cancel,skip) _**async**_
   > 编辑前调用，可以用来锁定某些字段。可取消，取消后表单状态不变; `skip()`用来跳过记录详情查询，跳过后不会触发 AFTER_DETAILS 
 - AFTER_UPDATE(crud,rs,autoProcess) _**async**_
   > 编辑提交后 `AFTER_SUBMIT`前调用. `autoProcess()` 用来自动更新视图
+- BEFORE_ADD_OR_UPDATE(crud,cancel,doView,...args) _**async**_
+  > 新增/编辑前调用，可以用来锁定某些字段。可取消，取消后表单状态不变; `doView()`用来请求记录详情查询，默认不会查询 
+- AFTER_ADD_OR_UPDATE(crud,rs,autoProcess) _**async**_
+  > 新增/编辑提交后 `AFTER_SUBMIT`前调用. `autoProcess()` 用来自动更新视图
 - BEFORE_VIEW(crud,row,cancel,skip) _**async**_
   > 查看前调用，可以用来对显示内容进行格式化等。可取消，取消后表单状态不变; `skip()`用来跳过记录详情查询，跳过后不会触发 AFTER_DETAILS 
 - AFTER_DETAILS(crud,rs) _**async**_
   > 编辑/查看(默认)开启详情查询后触发
-- AFTER_DETAILS_EDIT(crud,rs) _**async**_
+- AFTER_DETAILS_UPDATE(crud,rs) _**async**_
   > 编辑开启详情查询后触发，在`AFTER_DETAILS`之后
+- AFTER_DETAILS_ADD_OR_UPDATE(crud,rs) _**async**_
+  > 新增/编辑开启详情查询后触发，在`AFTER_DETAILS`之后
 - AFTER_DETAILS_VIEW(crud,rs) _**async**_
   > 查看(默认)开启详情查询后触发，在`AFTER_DETAILS`之后
 - BEFORE_SUBMIT(crud,cancel,setForm,...args) _**async**_
@@ -391,7 +403,7 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   > 表单提交时验证错误信息
 - Cannot find [request] in the installation options
   > 安装时未指定请求器。解决方法见【1. 安装】
-- table.rowKey is a blank value 'Xxx', it may cause an error - toDelete/Edit/View()
+- table.rowKey is a blank value 'Xxx', it may cause an error - toDelete/Update/View()
   > 进行删除/编辑/查看操作时未指定 table.rowKey。可以设置默认/$crud 实例的对应属性
 
 ## 工作流图

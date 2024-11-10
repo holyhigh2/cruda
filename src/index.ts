@@ -42,8 +42,8 @@ function viewGetter(prop: string, bind: CRUD["view"]): boolean {
 const VIEW_PROPS = [
   "opQuery",
   "opAdd",
-  "opEdit",
-  "opDel",
+  "opUpdate",
+  "opDelete",
   "opExport",
   "opImport",
   "opSort",
@@ -54,6 +54,14 @@ function isRecoverable(crudInstance: CRUD) {
   return crudInstance.recoverable || CRUD.defaults.recoverable;
 }
 
+// 1：新增；2：编辑；3：查看
+enum FormStatus {
+  ADD = 1,
+  UPDATE = 2,
+  VIEW = 3,
+  ADD_OR_UPDATE = 4
+}
+
 const CRUDA_KEY_SNAPSHOT = "cruda_snapshot_";
 function getSnapshotKey(
   key: string,
@@ -61,10 +69,10 @@ function getSnapshotKey(
   editingId?: string | number
 ) {
   let type = null;
-  if (formStatus == 1) {
+  if (formStatus == FormStatus.ADD) {
     type = "add";
-  } else if (formStatus == 2) {
-    type = "edit_" + editingId;
+  } else if (formStatus == FormStatus.UPDATE) {
+    type = "update_" + editingId;
   }
   return (
     CRUDA_KEY_SNAPSHOT + location.href + (key ? "_" + key : "") + "_" + type
@@ -115,11 +123,11 @@ class CRUD {
     AFTER_DELETE: "CRUD_AFTER_DELETE", // 删除后调用
     BEFORE_ADD: "CRUD_BEFORE_ADD", // 新增前调用，可以用来清空表单或产生uuid等
     AFTER_ADD: "CRUD_AFTER_ADD", //提交新增后触发
-    BEFORE_EDIT: "CRUD_BEFORE_EDIT", // 编辑前调用，可以用来锁定某些字段等
+    BEFORE_UPDATE: "CRUD_BEFORE_UPDATE", // 更新前调用，可以用来锁定某些字段等
     AFTER_UPDATE: "CRUD_AFTER_UPDATE", //提交更新后触发
     BEFORE_VIEW: "CRUD_BEFORE_VIEW", // 查看前调用
     AFTER_DETAILS_VIEW: "CRUD_AFTER_DETAILS_VIEW", //查询时开启查询详情后触发
-    AFTER_DETAILS_EDIT: "CRUD_AFTER_DETAILS_EDIT", //编辑时开启查询详情后触发
+    AFTER_DETAILS_UPDATE: "CRUD_AFTER_DETAILS_UPDATE", //编辑时开启查询详情后触发
     AFTER_DETAILS: "CRUD_AFTER_DETAILS", //查询/编辑时开启查询详情后触发
     BEFORE_SUBMIT: "CRUD_BEFORE_SUBMIT", // 提交前调用，可以用来处理form字段
     AFTER_SUBMIT: "CRUD_AFTER_SUBMIT", // 提交后调用，可以用来刷新页面、发送通知或者其他操作
@@ -138,10 +146,16 @@ class CRUD {
 
     BEFORE_RECOVER: "CRUD_BEFORE_RECOVER", //恢复前触发，如果recoverable开启
     BEFORE_CACHE: "CRUD_BEFORE_CACHE", //AFTER_QUERY前触发
+
+    BEFORE_ADD_OR_UPDATE: "CRUD_BEFORE_ADD_OR_UPDATE", //进入新增/编辑状态前触发
+    AFTER_ADD_OR_UPDATE: "CRUD_AFTER_ADD_OR_UPDATE", //提交新增/编辑后触发
+    AFTER_DETAILS_ADD_OR_UPDATE: "CRUD_AFTER_DETAILS_ADD_OR_UPDATE", //新增/编辑时开启查询详情后触发
   };
   // REST APIs
   static RESTAPI = {
     QUERY: { url: "", method: "GET" },
+    //{id}为固定标识，表示通过rowKey获取的主键值
+    QUERY_DETAILS: { url: "/{id}", method: "GET" },
     ADD: { url: "", method: "POST" },
     UPDATE: { url: "", method: "PUT" },
     DELETE: { url: "", method: "DELETE" },
@@ -149,6 +163,7 @@ class CRUD {
     IMPORT: { url: "/import", method: "POST" },
     SORT: { url: "/sort", method: "PUT" },
     COPY: { url: "/copy", method: "POST" },
+    ADD_OR_UPDATE: { url: "/addorupdate", method: "POST" },
   };
 
   //全局默认值
@@ -162,25 +177,25 @@ class CRUD {
     autoResponse: AutoResponse;
     [k: string]: Function | boolean | Record<string, any> | Pagination;
   } = {
-    query: {},
-    view: {},
-    pagination: {
-      pageSize: 0,
-      currentPage: 1,
-      total: 0,
-      frontend: false,
-    },
-    table: {
-      rowKey: "",
-    },
-    recoverable: false,
-    invalidBreak: true,
-    autoResponse: {
-      position: "head",
-      validator: () => false,
-      childrenKeyField: "children",
-    },
-  };
+      query: {},
+      view: {},
+      pagination: {
+        pageSize: 0,
+        currentPage: 1,
+        total: 0,
+        frontend: false,
+      },
+      table: {
+        rowKey: "",
+      },
+      recoverable: false,
+      invalidBreak: true,
+      autoResponse: {
+        position: "head",
+        validator: () => false,
+        childrenKeyField: "children",
+      },
+    };
 
   //注册自定义API
   static xApi(
@@ -274,22 +289,22 @@ class CRUD {
     orders: Record<string, unknown>[];
     [propName: string]: string | Record<string, unknown>[];
   } = {
-    _rowKey: "", //主键key
-    set rowKey(v: string) {
-      this._rowKey = v;
-    },
-    get rowKey(): string {
-      const ps = this._rowKey;
-      if (ps > 0) return ps;
-      return CRUD.defaults.table.rowKey;
-    },
-    data: [
-      // 表单数据托管
-    ],
-    selection: [], // 当前选中行
-    allColumns: [], // 表格所有列，用于动态展示
-    orders: [], // 排序列表
-  };
+      _rowKey: "", //主键key
+      set rowKey(v: string) {
+        this._rowKey = v;
+      },
+      get rowKey(): string {
+        const ps = this._rowKey;
+        if (ps > 0) return ps;
+        return CRUD.defaults.table.rowKey;
+      },
+      data: [
+        // 表单数据托管
+      ],
+      selection: [], // 当前选中行
+      allColumns: [], // 表格所有列，用于动态展示
+      orders: [], // 排序列表
+    };
   pagination: Pagination;
   sortation = {}; //排序对象
   formStatus: number = 0; // 1：新增；2：编辑；3：查看。适用于组合弹窗或细分弹窗
@@ -493,8 +508,8 @@ class CRUD {
       let kk = k.replace(preffix, "");
       if (startsWith(kk, "add")) {
         this.snapshots[""] = localStorage.getItem(k);
-      } else if (startsWith(kk, "edit_")) {
-        this.snapshots[kk.replace("edit_", "")] = localStorage.getItem(k);
+      } else if (startsWith(kk, "update_")) {
+        this.snapshots[kk.replace("update_", "")] = localStorage.getItem(k);
       }
     });
   }
@@ -743,7 +758,7 @@ class CRUD {
     if (!proceed) return;
 
     if (isRecoverable(this)) {
-      let key = getSnapshotKey(this.key, 1);
+      let key = getSnapshotKey(this.key, FormStatus.ADD);
       let data = localStorage.getItem(key);
       let json = data ? JSON.parse(data) : undefined;
       await callHook(
@@ -757,9 +772,9 @@ class CRUD {
       }
     }
 
-    this.formStatus = 1;
+    this.formStatus = FormStatus.ADD;
   }
-  async toEdit(row: Record<string, unknown>): Promise<unknown> {
+  async toUpdate(row: Record<string, unknown>): Promise<unknown> {
     let id = "-";
     const rowKey = this.table.rowKey;
     if (rowKey) {
@@ -767,7 +782,7 @@ class CRUD {
     } else {
       crudWarn(
         `table.rowKey is a blank value [${rowKey}], it may cause an error`,
-        "- toEdit()"
+        "- toUpdate()"
       );
     }
 
@@ -781,7 +796,7 @@ class CRUD {
     let queryDetails = true;
 
     await callHook(
-      CRUD.HOOK.BEFORE_EDIT,
+      CRUD.HOOK.BEFORE_UPDATE,
       this,
       row,
       () => (proceed = false),
@@ -790,7 +805,7 @@ class CRUD {
     if (!proceed) return;
 
     if (isRecoverable(this)) {
-      let key = getSnapshotKey(this.key, 2, id);
+      let key = getSnapshotKey(this.key, FormStatus.UPDATE, id);
       let data = localStorage.getItem(key);
       let json = data ? JSON.parse(data) : undefined;
       await callHook(
@@ -804,7 +819,7 @@ class CRUD {
       }
     }
 
-    this.formStatus = 2;
+    this.formStatus = FormStatus.UPDATE;
     this.loading.form = true;
 
     let rs;
@@ -813,7 +828,7 @@ class CRUD {
       try {
         rs = await this.getDetails(id, params);
         await callHook(CRUD.HOOK.AFTER_DETAILS, this, rs);
-        await callHook(CRUD.HOOK.AFTER_DETAILS_EDIT, this, rs);
+        await callHook(CRUD.HOOK.AFTER_DETAILS_UPDATE, this, rs);
       } catch (e) {
         this.loading.form = false;
         callHook(CRUD.HOOK.ON_ERROR, this, e);
@@ -826,6 +841,73 @@ class CRUD {
     if (error) throw error;
 
     return rs;
+  }
+
+  async toAddOrUpdate(...args: unknown[]) {
+    let proceed = true;
+    let queryDetails = false;
+
+    await callHook(
+      CRUD.HOOK.BEFORE_ADD_OR_UPDATE,
+      this,
+      () => (proceed = false),
+      () => (queryDetails = true),
+      ...args
+    );
+    if (!proceed) return;
+
+    if (isRecoverable(this)) {
+      let key = getSnapshotKey(this.key, FormStatus.ADD_OR_UPDATE);
+      let data = localStorage.getItem(key);
+      let json = data ? JSON.parse(data) : undefined;
+      await callHook(
+        CRUD.HOOK.BEFORE_RECOVER,
+        this,
+        () => (proceed = false),
+        json
+      );
+      if (proceed && json) {
+        innerUpdater(this.form, json);
+      }
+    }
+
+    this.formStatus = FormStatus.ADD_OR_UPDATE;
+
+    let rs;
+    let error;
+    if (queryDetails) {
+      let id = "-";
+      let row = args[0] as Record<string, any>
+      const rowKey = this.table.rowKey;
+      if (rowKey) {
+        id = row[rowKey] as string;
+      } else {
+        crudWarn(
+          `table.rowKey is a blank value [${rowKey}], it may cause an error`,
+          "- toAddOrUpdate()"
+        );
+      }
+
+      this.editingId = id;
+
+      const params = {
+        [rowKey]: id,
+      };
+      this.loading.form = true;
+      try {
+        rs = await this.getDetails(id, params);
+        await callHook(CRUD.HOOK.AFTER_DETAILS, this, rs);
+        await callHook(CRUD.HOOK.AFTER_DETAILS_ADD_OR_UPDATE, this, rs);
+      } catch (e) {
+        this.loading.form = false;
+        callHook(CRUD.HOOK.ON_ERROR, this, e);
+        error = e;
+      }
+      this.loading.form = false;
+    }
+
+    if (error) throw error;
+    return rs
   }
   async toView(row?: Record<string, unknown>): Promise<unknown> {
     let id;
@@ -856,7 +938,7 @@ class CRUD {
     );
     if (!proceed) return;
 
-    this.formStatus = 3;
+    this.formStatus = FormStatus.VIEW;
     this.loading.form = true;
 
     let rs;
@@ -948,20 +1030,27 @@ class CRUD {
     let error;
     let process;
     try {
-      if (type === 1) {
+      if (type === FormStatus.ADD) {
         rs = await this.doAdd(submitForm);
 
         process = getAddProcessor(this, submitForm, rs);
         autoProcess(rs, this, process);
 
         await callHook(CRUD.HOOK.AFTER_ADD, this, rs, process);
-      } else if (type === 2) {
+      } else if (type === FormStatus.UPDATE) {
         rs = await this.doUpdate(submitForm);
 
         process = getUpdateProcessor(this, submitForm, rs);
         autoProcess(rs, this, process);
 
         await callHook(CRUD.HOOK.AFTER_UPDATE, this, rs, process);
+      } else if (type === FormStatus.ADD_OR_UPDATE) {
+        rs = await this.doAddOrUpdate(submitForm);
+
+        process = getUpdateProcessor(this, submitForm, rs);
+        autoProcess(rs, this, process);
+
+        await callHook(CRUD.HOOK.AFTER_ADD_OR_UPDATE, this, rs, process);
       }
 
       if (isRecoverable(this)) {
@@ -984,7 +1073,7 @@ class CRUD {
   // 提交表单
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async submit(...args: unknown[]): Promise<unknown> {
-    if (this.formStatus !== 1 && this.formStatus !== 2) {
+    if (this.formStatus !== FormStatus.ADD && this.formStatus !== FormStatus.UPDATE && this.formStatus !== FormStatus.ADD_OR_UPDATE) {
       crudWarn(
         `formStatus '${this.formStatus}' is not submittable, it should be 1(add)/2(update)`,
         "- submit()"
@@ -1012,20 +1101,22 @@ class CRUD {
   }
 
   async submitAdd(...args: unknown[]): Promise<unknown> {
-    return this._submit(1, ...args);
+    return this._submit(FormStatus.ADD, ...args);
   }
 
-  async submitEdit(...args: unknown[]): Promise<unknown> {
-    return this._submit(2, ...args);
+  async submitUpdate(...args: unknown[]): Promise<unknown> {
+    return this._submit(FormStatus.UPDATE, ...args);
+  }
+  async submitAddOrUpdate(...args: unknown[]): Promise<unknown> {
+    return this._submit(FormStatus.ADD_OR_UPDATE, ...args);
   }
 
   // 查询row详情
   getDetails(id?: string, params?: Record<string, unknown>): Promise<unknown> {
+    let url = getRestUrl(this, "QUERY_DETAILS", CRUD.RESTAPI.QUERY_DETAILS.url)
     return CRUD.request({
-      url:
-        getRestUrl(this, "QUERY", CRUD.RESTAPI.QUERY.url) +
-        (id ? "/" + id : ""),
-      method: getRestMethod(this, "QUERY", CRUD.RESTAPI.QUERY.method),
+      url: url.replace('{id}', id!),
+      method: getRestMethod(this, "QUERY_DETAILS", CRUD.RESTAPI.QUERY_DETAILS.method),
       params,
     });
   }
@@ -1065,6 +1156,15 @@ class CRUD {
     return CRUD.request({
       url: getRestUrl(this, "UPDATE", CRUD.RESTAPI.UPDATE.url),
       method: getRestMethod(this, "UPDATE", CRUD.RESTAPI.UPDATE.method),
+      data: form,
+    });
+  }
+
+  // 执行新增或编辑操作
+  private doAddOrUpdate(form: Record<string, unknown>): Promise<unknown> {
+    return CRUD.request({
+      url: getRestUrl(this, "ADD_OR_UPDATE", CRUD.RESTAPI.ADD_OR_UPDATE.url),
+      method: getRestMethod(this, "ADD_OR_UPDATE", CRUD.RESTAPI.ADD_OR_UPDATE.method),
       data: form,
     });
   }
@@ -1223,8 +1323,8 @@ function getUpdateProcessor(
         let pos = crud.autoResponse.position;
         container = newPid
           ? newParentRow[childrenKeyField] ||
-            (!(innerUpdater(newParentRow, { [childrenKeyField]: [] }) as any) &&
-              newParentRow[childrenKeyField])
+          (!(innerUpdater(newParentRow, { [childrenKeyField]: [] }) as any) &&
+            newParentRow[childrenKeyField])
           : crud.table.data;
         if (pos == "head") {
           container.unshift(row);

@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.20.0] - 2024/11/8 ⚠️BreakChange
+### Add
+- Hooks - BEFORE_ADD_OR_EDIT/AFTER_ADD_OR_EDIT/AFTER_DETAILS_ADD_OR_UPDATE
+- CRUD.RESTAPI - ADD_OR_UPDATE/QUERY_DETAILS
+- APIs - toAddOrUpdate/submitAddOrUpdate
+### Change
+- Hooks - BEFORE_EDIT -> BEFORE_UPDATE
+- Hooks - AFTER_DETAILS_EDIT -> AFTER_DETAILS_UPDATE
+- APIs - changeSort -> changeOrder
+- APIs - toEdit -> toUpdate
+- APIs - submitEdit -> submitUpdate
+- Props - view.opEdit -> view.opUpdate
+- Props - view.opDel -> view.opDelete
+
+
 ## [1.11.0] - 2024/3/14
 ### Add
 - Pagination - frontend
