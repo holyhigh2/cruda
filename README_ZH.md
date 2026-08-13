@@ -353,7 +353,7 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   > 新增/编辑前调用，可以用来锁定某些字段。可取消，取消后表单状态不变; `doView()`用来请求记录详情查询，默认不会查询 
 - AFTER_ADD_OR_UPDATE(crud,rs,autoProcess) _**async**_
   > 新增/编辑提交后 `AFTER_SUBMIT`前调用. `autoProcess()` 用来自动更新视图
-- BEFORE_VIEW(crud,row,cancel,skip) _**async**_
+- BEFORE_VIEW(crud,row,params,cancel,skip) _**async**_
   > 查看前调用，可以用来对显示内容进行格式化等。可取消，取消后表单状态不变; `skip()`用来跳过记录详情查询，跳过后不会触发 AFTER_DETAILS 
 - AFTER_DETAILS(crud,rs) _**async**_
   > 编辑/查看(默认)开启详情查询后触发

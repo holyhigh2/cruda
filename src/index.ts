@@ -503,7 +503,7 @@ class CRUD {
     //load snapshots
     const preffix =
       CRUDA_KEY_SNAPSHOT + location.href + (key ? "_" + key : "") + "_";
-    const ks = filter(keys(localStorage), (k) => startsWith(k, preffix));
+    const ks = filter<string>(keys(localStorage), (k) => startsWith(k, preffix));
     each(ks, (k) => {
       let kk = k.replace(preffix, "");
       if (startsWith(kk, "add")) {
@@ -933,6 +933,7 @@ class CRUD {
       CRUD.HOOK.BEFORE_VIEW,
       this,
       row,
+      params,
       () => (proceed = false),
       () => (queryDetails = false)
     );

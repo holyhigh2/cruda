@@ -352,7 +352,7 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   > Emit before add/update. Cancellable,if be cancelled the `formStatus` will not be change. Use `doView()` to query details 
 - AFTER_ADD_OR_UPDATE(crud,rs,autoProcess) _**async**_
   > Emit after add/update and before `AFTER_SUBMIT`. Use `autoProcess()` to update table view
-- BEFORE_VIEW(crud,row,cancel,skip) _**async**_
+- BEFORE_VIEW(crud,row,params,cancel,skip) _**async**_
   > Emit before view. Cancellable,if be cancelled the `formStatus` will not be change. Use `skip()` to stop detail-query and the `AFTER_DETAILS` will not emit
 - AFTER_DETAILS(crud,rs) _**async**_
   > Emit after `toUpdate/toView` and is not skipped by `skip()`
