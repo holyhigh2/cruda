@@ -64,6 +64,14 @@ $crud.doUpdate() //PUT
 ### 1. Install
 - [cruda-adapter-element-ui](https://github.com/holyhigh2/cruda-element-ui)
 - [cruda-adapter-element-plus](https://github.com/holyhigh2/cruda-element-plus)
+#### Non-browser environments (v1.21+)
+Cruda does not touch `localStorage` / `location` at import time anymore. When they are absent (SSR, Node, unit tests), the snapshot storage falls back to an in-memory implementation and the snapshot scope becomes an empty string, so `new CRUD()` works anywhere.
+```ts
+// optional: custom persistence
+CRUD._storage = { getItem, setItem, removeItem, keys }
+// optional: custom snapshot scope (defaults to location.href)
+CRUD._scope = () => 'my-app'
+```
 ### 2. Activate
 - [cruda-adapter-element-ui](https://github.com/holyhigh2/cruda-element-ui)
 - [cruda-adapter-element-plus](https://github.com/holyhigh2/cruda-element-plus)
@@ -105,6 +113,8 @@ CRUD.RESTAPI = {
   SORT: { url: "/sort", method: "PUT" },
   COPY: { url: "/copy", method: "POST" },
   ADD_OR_UPDATE: { url: "/addorupdate", method: "POST" },//(v1.20+)
+  PATCH: { url: "", method: "PATCH" },//(v1.21+)
+  CHILDREN: { url: "/{id}/children", method: "GET" },//(v1.21+)
 }
 ```
 #### Instance API (v1.9+)
@@ -136,6 +146,7 @@ onHook(this,CRUD.HOOK.AFTER_CLONE,(crud,rs)=>{
 //3. Call toClone
 this.$crud.toClone({x:1,y:2});
 ```
+> `xApi` must be called before any CRUD instance is created: with `loadable: true` it registers an extra key on `loading`, and those keys are merged in at construction time. Built-in api names (`QUERY`, `ADD`, `PATCH`, ...) are rejected, use `restApi` to override their url/method instead.
 ### 10. Auto Response (v1.8+)
 We can config `autoResponse` to refresh the table view automatically, this could help you to avoid losing the page state if you `reload()` the page after add/update/delete/copy submition before. A typical case is you may lose all hierarchies of TreeTable you opened before when you `reload()`. Below is the config
 ```ts
@@ -200,6 +211,56 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs, params, slice) {
 }
 ```
 After enabling pagination.frontend the method `toQuery/reload` no longer requests the backend, use `reset` instead
+### 12. Batch Patch (v1.21+)
+`toPatch(rows, patch)` updates some fields of one or more rows directly, without entering the form state. It fits enabling/disabling, approving, archiving and other single-field bulk operations.
+```js
+// bulk: PATCH /api/xxx with { ids:[1,2], enabled:1 }
+$crud.toPatch([{ id: 1 }, { id: 2 }], { enabled: 1 })
+// single row, same API
+$crud.toPatch(row, { enabled: 1 })
+```
+The default request body is `{ ids, ...patch }`. Customize it when the backend differs
+```ts
+useCrud({
+  url: '/api/xxx',
+  patch: {
+    // e.g. PUT /api/xxx/change-enable with { id, enabled }
+    payload: (ids, patch, rows) => ({ id: rows[0].id, ...patch })
+  },
+  restApi: {
+    PATCH: { url: '/change-enable', method: 'PUT' }
+  }
+})
+```
+- It never touches `formStatus` / `form` / `editingId`
+- No request is sent when `rows` or `patch` is empty, or when `table.rowKey` is missing
+- `autoResponse`: without `getter` the patch fields are merged into matched rows; with `getter` the returned full rows replace them. Tree nodes are matched by `findTreeNodes`
+### 13. Tree Lazy Children (v1.21+)
+Enable `children.enabled` to load child nodes on demand instead of building the whole tree at once.
+```ts
+const $crud = useCrud({
+  url: '/api/sys_functions',
+  children: {
+    enabled: true,               // default false, keeps the full-load behavior
+    leafKeyField: 'hasChildren', // optional, write back whether the node has children
+    emptyChildrenAsLoaded: true  // optional, [] means "loaded but empty" (default true)
+  },
+  autoResponse: { parentKeyField: 'pid' }
+})
+// call it when a tree node is expanded
+await $crud.loadChildren(row)
+```
+Three states are distinguished
+
+| `row[childrenKeyField]` | Meaning |
+|---|---|
+| `undefined` / `null` | not loaded yet |
+| `[]` | loaded without children (`emptyChildrenAsLoaded` is true) |
+| `[{...}]` | loaded with children |
+
+- Set `emptyChildrenAsLoaded: false` when the backend returns `[]` for "not queried yet"
+- Concurrent `loadChildren` calls on the same node share one request
+- `isChildrenLoaded(row)` / `isLoadingChildren(row)` are for JS logic; use `loading.children` in templates because the internal node set is not reactive
 
 ## Cruda API
 ### Props
@@ -227,6 +288,10 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   > - import 
   > - sort 
   > - copy 
+  > - patch (v1.21+)
+  > - children (v1.21+)
+- busy
+  > Read-only. True while any operation is in progress, useful to disable action buttons
 - query
   > Query data container
 - sortation
@@ -257,7 +322,7 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
 - editingId
   > editing id of the `table.row`
 - key
-  > crud key in multi-instance
+  > crud key in multi-instance. Falls back to the rest url when omitted, so instances sharing the same url must set distinct keys, otherwise their drafts overwrite each other
 - recoverable✅⚡
   > enable/disable editing snapshot
 - snapshots
@@ -266,6 +331,16 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   > will break the validation after first catch
 - autoResponse✅⚡
   > will update table view automatically after you add/update/delete/copy `crud.table.data`
+- patch✅⚡ (v1.21+)
+  > Batch patch config
+  >
+  > - payload(ids, patch, rows) : customize the request body of `toPatch()`. Default `{ ids, ...patch }`
+- children✅⚡ (v1.21+)
+  > Tree children lazy-load config
+  >
+  > - enabled (default false)
+  > - leafKeyField
+  > - emptyChildrenAsLoaded (default true)
 - defaultQuery⚡
   > Will merge into the GET request
 - restApi⚡
@@ -279,6 +354,7 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
 
 - toQuery(query?: Record<string, any>) : Promise
   > (When `frontend` is false) Instance query. Send GET request to the backend。The argument 'query' will [merge](https://holyhigh2.github.io/func.js/api/modules/object#merge) with the $crud.query
+  > A newer `toQuery` invalidates earlier unfinished ones (v1.21+): their responses are dropped, `AFTER_QUERY` will not emit and their errors are dropped silently
 - toDelete(rows: Record<string, unknown> | Record<string, unknown>[]) : Promise
   > Instance del. Send DELETE request to the backend
 - toExport() : Promise
@@ -297,6 +373,24 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   > Instance sort. Send PUT _**(default)**_ request to the backend
 - toCopy() : Promise
   > Instance copy. Send POST _**(default)**_ request to the backend
+- toPatch(rows, patch) : Promise (v1.21+)
+  > Instance patch. Update some fields of one or more rows directly. Send PATCH _**(default)**_ request to the backend. It never changes `formStatus`/`form`/`editingId`
+- loadChildren(row, query?) : Promise (v1.21+)
+  > Load the children of a tree row. Send GET _**(default)**_ request to `CRUD.RESTAPI.CHILDREN`. Concurrent calls on the same node share one request
+- isChildrenLoaded(row) : boolean (v1.21+)
+  > Whether the children of `row` have been loaded
+- isLoadingChildren(row) : boolean (v1.21+)
+  > Whether the children of `row` are loading. Not reactive, use `loading.children` in templates
+- refreshRow(row) : Promise (v1.21+)
+  > Re-query one row and update it in place. Node identity, tree expansion and loaded children are preserved
+- ensureSelection() : Record<string, any>[] (v1.21+)
+  > Return the selected rows. Returns `[]` and warns when nothing is selected
+- saveDraft() (v1.21+)
+  > Save the current form as a draft. Requires `recoverable`
+- clearDraft() (v1.21+)
+  > Remove the draft of the current form
+- hasDraft() : boolean (v1.21+)
+  > Whether a draft exists for the current form
 - cancel()
   > Set `formStatus` to 'Normal'
 - submit(...args) : Promise
@@ -324,7 +418,7 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   prop: string
   order: string | null
   })
-  > Usually used in table sort event like `sort-change` in `element-ui`, it will call `toQuery()` automatically
+  > Usually used in table sort event like `sort-change` in `element-ui`, it will reset `pagination.currentPage` to 1 and call `toQuery()` automatically
 - getContext()
   > Return the context of the crud 
 - reset(query?: Record<string, any>) : Promise
@@ -380,6 +474,14 @@ After enabling pagination.frontend the method `toQuery/reload` no longer request
   > Emit before copy. Cancellable, if be cancelled the `AFTER_COPY` will not emit
 - AFTER_COPY(crud,rs,rows,autoProcess) _**async**_
   > Emit after copy complete. Use `autoProcess()` to update table view
+- BEFORE_PATCH(crud,rows,patch,cancel) _**async**_ (v1.21+)
+  > Emit before patch. Can modify `patch`. Cancellable, if be cancelled the `AFTER_PATCH` will not emit
+- AFTER_PATCH(crud,rs,rows,patch,autoProcess) _**async**_ (v1.21+)
+  > Emit after patch complete. Use `autoProcess()` to update table view
+- BEFORE_CHILDREN(crud,row,params,cancel) _**async**_ (v1.21+)
+  > Emit before loading tree children. Can modify `params`. Cancellable, if be cancelled no request will be sent
+- AFTER_CHILDREN(crud,rs,row,children) _**async**_ (v1.21+)
+  > Emit after children loaded. Modify `children` here before it is written into the row
 - ON_ERROR(crud,error)
   > Emit on error
 - ON_CANCEL(crud)

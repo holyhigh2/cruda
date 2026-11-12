@@ -64,6 +64,14 @@ $crud.doUpdate() //PUT
 ### 1. 安装
 - [cruda-adapter-element-ui](https://gitee.com/holyhigh2/cruda-element-ui)
 - [cruda-adapter-element-plus](https://gitee.com/holyhigh2/cruda-element-plus)
+#### 非浏览器环境 (v1.21+)
+Cruda 在导入时不再直接访问 `localStorage` / `location`。当二者不存在时（SSR、Node、单元测试），快照存储自动回退为内存实现、快照作用域变为空串，因此 `new CRUD()` 在任何环境都能运行。
+```ts
+// 可选：自定义持久化
+CRUD._storage = { getItem, setItem, removeItem, keys }
+// 可选：自定义快照作用域（默认 location.href）
+CRUD._scope = () => 'my-app'
+```
 ### 2. 激活
 - [cruda-adapter-element-ui](https://gitee.com/holyhigh2/cruda-element-ui)
 - [cruda-adapter-element-plus](https://gitee.com/holyhigh2/cruda-element-plus)
@@ -105,6 +113,8 @@ CRUD.RESTAPI = {
   SORT: { url: "/sort", method: "PUT" },
   COPY: { url: "/copy", method: "POST" },
   ADD_OR_UPDATE: { url: "/addorupdate", method: "POST" },//(v1.20+)
+  PATCH: { url: "", method: "PATCH" },//(v1.21+)
+  CHILDREN: { url: "/{id}/children", method: "GET" },//(v1.21+)
 }
 ```
 #### 实例API (v1.9+)
@@ -136,6 +146,7 @@ onHook(this,CRUD.HOOK.AFTER_CLONE,(crud,rs)=>{
 //3. 调用 toClone 方法
 this.$crud.toClone({x:1,y:2});
 ```
+> `xApi` 必须在创建 CRUD 实例之前调用：`loadable: true` 会在 `loading` 上登记一个额外键，而这些键是在构造实例时合并进去的。内置 API 名（`QUERY`、`ADD`、`PATCH` 等）会被拒绝注册，要改它们的地址/方法请使用 `restApi` 配置。
 ### 10. 自动响应 (v1.8+)
 通过配置`autoResponse`参数可以实现add/update/delete/copy操作的自动视图刷新，避免全部通过`reload()`操作而导致的状态丢失。一个典型的场景就是树表操作 —— 可避免因刷新而导致的层级关闭或页面闪烁。具体配置如下
 ```ts
@@ -200,6 +211,56 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
 }
 ```
 开启前端分页后`toQuery/reload`方法都不会请求后台接口，如需要刷新数据可使用`reset`方法
+### 12. 批量补丁 (v1.21+)
+`toPatch(rows, patch)` 可直接更新一行或多行的部分字段，不会进入表单态。适用于启用/禁用、审核、归档等单字段批量操作。
+```js
+// 批量：请求 PATCH /api/xxx，请求体 { ids:[1,2], enabled:1 }
+$crud.toPatch([{ id: 1 }, { id: 2 }], { enabled: 1 })
+// 单行，API 相同
+$crud.toPatch(row, { enabled: 1 })
+```
+默认请求体为 `{ ids, ...patch }`。后端格式不同时可自定义
+```ts
+useCrud({
+  url: '/api/xxx',
+  patch: {
+    // 例如 PUT /api/xxx/change-enable，请求体 { id, enabled }
+    payload: (ids, patch, rows) => ({ id: rows[0].id, ...patch })
+  },
+  restApi: {
+    PATCH: { url: '/change-enable', method: 'PUT' }
+  }
+})
+```
+- 不会修改 `formStatus` / `form` / `editingId`
+- `rows` 或 `patch` 为空、`table.rowKey` 未配置时不会发送请求
+- `autoResponse`：未配置 `getter` 时把 `patch` 字段合并到命中行；配置 `getter` 时用返回的完整行替换。树节点通过 `findTreeNodes` 匹配
+### 13. 树子级懒加载 (v1.21+)
+开启 `children.enabled` 后可按需加载子节点，而不必一次性构建整棵树。
+```ts
+const $crud = useCrud({
+  url: '/api/sys_functions',
+  children: {
+    enabled: true,               // 默认 false，保持全量加载的旧行为
+    leafKeyField: 'hasChildren', // 可选，回写节点是否还有子级
+    emptyChildrenAsLoaded: true  // 可选，[] 表示"已加载但为空"（默认 true）
+  },
+  autoResponse: { parentKeyField: 'pid' }
+})
+// 树节点展开时调用
+await $crud.loadChildren(row)
+```
+区分子级的三态
+
+| `row[childrenKeyField]` | 含义 |
+|---|---|
+| `undefined` / `null` | 尚未加载 |
+| `[]` | 已加载，无子级（`emptyChildrenAsLoaded` 为 true 时） |
+| `[{...}]` | 已加载，有子级 |
+
+- 如果后端用 `[]` 表示"还没查询"，请设置 `emptyChildrenAsLoaded: false`
+- 同一节点的并发 `loadChildren` 只会发送一次请求
+- `isChildrenLoaded(row)` / `isLoadingChildren(row)` 用于 JS 逻辑；模板中请使用 `loading.children`，内部节点集合不具备响应式
 
 ## Cruda API
 ### Props
@@ -227,6 +288,10 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   > - import 导入按钮锁定开关
   > - sort 排序按钮锁定开关
   > - copy 复制按钮锁定开关
+  > - patch 批量补丁锁定开关 (v1.21+)
+  > - children 子级加载锁定开关 (v1.21+)
+- busy
+  > 只读。任一操作进行中时为 true，可用于统一禁用操作按钮
 - query
   > 托管查询条件的容器
 - sortation
@@ -257,7 +322,7 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
 - editingId
   > 当前正在编辑器的表单行id，根据`table.rowKey`属性确定
 - key
-  > 多实例下每个crud实例的标识
+  > 多实例下每个crud实例的标识。缺省时回退为rest url，同url的多个实例须显式设置不同的key，否则草稿会互相覆盖
 - recoverable✅⚡
   > 是否开启编辑快照，开启后会在新增/编辑/新增编辑时保存form快照
 - snapshots
@@ -266,6 +331,16 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   > 表单校验检测到首个无效信息时中断校验
 - autoResponse✅⚡
   > 在表单提交 add/update/delete/copy操作后，自动更新`crud.table.data`视图
+- patch✅⚡ (v1.21+)
+  > 批量补丁配置
+  >
+  > - payload(ids, patch, rows) 自定义 `toPatch()` 的请求体，默认 `{ ids, ...patch }`
+- children✅⚡ (v1.21+)
+  > 树子级懒加载配置
+  >
+  > - enabled 是否启用（默认 false）
+  > - leafKeyField 记录"是否还有子级"的字段名
+  > - emptyChildrenAsLoaded `[]` 是否视为已加载（默认 true）
 - defaultQuery⚡
   > 默认查询参数，GET请求时自动合并到请求参数中
 - restApi⚡
@@ -279,6 +354,7 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
 
 - toQuery(query?: Record<string, any>) : Promise
   > (未开启前端分页时) 启动 crud 实例的查询。向指定 REST 地址发送 GET 请求。query参数会与$crud.query进行[merge](https://holyhigh2.github.io/func.js/api/modules/object#merge)但不会修改$crud.query
+  > 后发起的查询会作废先前未完成的查询（v1.21+）：其响应被丢弃，不会触发 `AFTER_QUERY`，异常也静默丢弃
 - toDelete(rows: Record<string, unknown> | Record<string, unknown>[]) : Promise
   > 启动 crud 实例的删除。向指定 REST 地址发送 DELETE _**(默认)**_ 请求
 - toExport() : Promise
@@ -297,6 +373,24 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   > 启动 crud 实例的排序。向指定 REST 地址发送 PUT _**(默认)**_ 请求
 - toCopy() : Promise
   > 启动 crud 实例的复制。向指定 REST 地址发送 POST _**(默认)**_ 请求
+- toPatch(rows, patch) : Promise (v1.21+)
+  > 启动批量补丁。直接更新一行或多行的部分字段，向指定 REST 地址发送 PATCH _**(默认)**_ 请求。不会修改 `formStatus`/`form`/`editingId`
+- loadChildren(row, query?) : Promise (v1.21+)
+  > 加载树节点的子级，向 `CRUD.RESTAPI.CHILDREN` 发送 GET _**(默认)**_ 请求。同一节点的并发调用会复用同一个请求
+- isChildrenLoaded(row) : boolean (v1.21+)
+  > 判断节点的子级是否已加载
+- isLoadingChildren(row) : boolean (v1.21+)
+  > 判断节点的子级是否正在加载。非响应式，模板中请使用 `loading.children`
+- refreshRow(row) : Promise (v1.21+)
+  > 重新获取单行数据并就地更新。节点引用、树展开态与已加载的子级都会保留
+- ensureSelection() : Record<string, any>[] (v1.21+)
+  > 返回当前选中行。未选中时返回空数组并输出警告
+- saveDraft() (v1.21+)
+  > 保存当前表单为草稿，需开启 `recoverable`
+- clearDraft() (v1.21+)
+  > 清除当前表单的草稿
+- hasDraft() : boolean (v1.21+)
+  > 当前表单是否存在草稿
 - cancel()
   > 设置 form 状态为取消。
 - submit(...args) : Promise
@@ -324,7 +418,7 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   prop: string
   order: string | null
   })
-  > 用在 table 的 sort-change 事件，会自动管理排序信息并触发查询
+  > 用在 table 的 sort-change 事件，会自动管理排序信息、将 `pagination.currentPage` 重置为 1 并触发查询
 - getContext()
   > 获取crud实例所在的上下文
 - reset(query?: Record<string, any>) : Promise
@@ -384,6 +478,14 @@ CRUD.defaults[CRUD.HOOK.AFTER_QUERY] = function (crud, rs/*开启缓存/前端�
   > 复制记录前调用，可取消。取消后不会触发 AFTER_COPY
 - AFTER_COPY(crud,rs,rows,autoProcess) _**async**_
   > 复制完成后调用. `autoProcess()` 用来自动更新视图
+- BEFORE_PATCH(crud,rows,patch,cancel) _**async**_ (v1.21+)
+  > 批量补丁前调用，可修改 `patch`，可取消。取消后不会触发 AFTER_PATCH
+- AFTER_PATCH(crud,rs,rows,patch,autoProcess) _**async**_ (v1.21+)
+  > 批量补丁完成后调用。`autoProcess()` 用来自动更新视图
+- BEFORE_CHILDREN(crud,row,params,cancel) _**async**_ (v1.21+)
+  > 加载树子级前调用，可修改 `params`，可取消。取消后不会发送请求
+- AFTER_CHILDREN(crud,rs,row,children) _**async**_ (v1.21+)
+  > 子级加载完成后调用，可在此处修改 `children` 后再写入节点
 - ON_ERROR(crud,error)
   > 操作发生错误时调用
 - ON_CANCEL(crud)
