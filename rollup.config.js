@@ -2,7 +2,6 @@
 import terser from '@rollup/plugin-terser'
 import banner2 from 'rollup-plugin-banner2'
 import json from '@rollup/plugin-json'
-import copy from 'rollup-plugin-copy'
 import typescript from 'rollup-plugin-typescript2'
 import clear from 'rollup-plugin-clear'
 const pkg = require('./package.json')
@@ -28,20 +27,6 @@ export default [
   `
       ),
       json(),
-      copy({
-        targets: [
-          {
-            src: [
-              'CHANGELOG.md',
-              'LICENSE',
-              'README.md',
-              'package.json',
-              '.npmignore',
-            ],
-            dest: 'dist',
-          },
-        ],
-      }),
     ],
     output: [
       {

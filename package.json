@@ -1,11 +1,15 @@
 {
   "name": "cruda",
-  "version": "1.21.0",
+  "version": "1.21.1",
   "description": "A CRUD viewmodal, provides unified APIs for different UIFrameworks",
-  "main": "index.js",
-  "module": "index.js",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
   "type": "module",
-  "types": "index.d.ts",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
   "author": "holyhigh2",
   "license": "MIT",
   "repository": {
@@ -23,7 +27,9 @@
   ],
   "scripts": {
     "lint": "eslint src/**",
-    "build": "rollup --config --bundleConfigAsCjs"
+    "build": "rollup --config --bundleConfigAsCjs",
+    "pack:check": "npm run build && npm pack --dry-run",
+    "release": "npm run pack:check && npm publish"
   },
   "dependencies": {
     "myfx": ">=2.0.0"

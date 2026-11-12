@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.21.1] - 2026/11/12
+### Fixed
+- Package - 1.21.0 was packed from the repository root, so the tarball contained no `dist/index.js`/`index.d.ts` and `cruda` could not be imported. `main`/`module`/`types` now point to `dist/`, and `files` whitelists `dist` so it is not excluded by the `.gitignore` fallback (which ignores `dist`)
+### Change
+- Package - `npm run build` no longer copies `package.json`/`README`/`LICENSE`/`CHANGELOG` into `dist`; publish from the repository root with `npm run release`. npm includes `package.json`/`README`/`LICENSE` automatically, and `CHANGELOG`/images are listed in `files`. `npm run pack:check` builds and prints the real tarball contents before publishing
+
 ## [1.21.0] - 2026/11/12
 ### Add
 - APIs - toPatch / loadChildren / isChildrenLoaded / isLoadingChildren
